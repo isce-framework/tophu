@@ -44,8 +44,8 @@ class TestMultilook:
         # Build the input array by repeating each element `nlooks` times.
         nlooks = (7, 5)
         input = expected
-        for i, n in enumerate(nlooks):
-            input = np.repeat(input, repeats=n, axis=i)
+        for axis, n in enumerate(nlooks):
+            input = np.repeat(input, repeats=n, axis=axis)
 
         # Multilook.
         output = tophu.multilook(input, nlooks=nlooks)
@@ -62,8 +62,27 @@ class TestMultilook:
         # Build the input array by repeating each element `nlooks` times.
         nlooks = (5, 1, 3)
         input = expected
-        for i, n in enumerate(nlooks):
-            input = np.repeat(input, repeats=n, axis=i)
+        for axis, n in enumerate(nlooks):
+            input = np.repeat(input, repeats=n, axis=axis)
+
+        # Multilook.
+        output = tophu.multilook(input, nlooks=nlooks)
+
+        # Check results.
+        assert output.shape == expected.shape
+        assert output.dtype == expected.dtype
+        assert np.allclose(output, expected, rtol=1e-12, atol=1e-12)
+
+    def test_multilook_complex(self):
+        # Expected output array.
+        expected = np.arange(12, dtype=np.complex128).reshape(3, 4)
+        expected.imag = np.arange(12, 24).reshape(3, 4)
+
+        # Build the input array by repeating each element `nlooks` times.
+        nlooks = 3
+        input = expected
+        for axis in range(expected.ndim):
+            input = np.repeat(input, repeats=nlooks, axis=axis)
 
         # Multilook.
         output = tophu.multilook(input, nlooks=nlooks)
@@ -76,7 +95,8 @@ class TestMultilook:
     def test_nlooks_length_mismatch(self):
         # Check that `multilook()` fails if length of `nlooks` doesn't match `arr.ndim`.
         arr = np.zeros((15, 15), dtype=np.float64)
-        with pytest.raises(ValueError, match="length mismatch"):
+        errmsg = r"length of nlooks \(3\) must match input array rank \(2\)"
+        with pytest.raises(ValueError, match=errmsg):
             tophu.multilook(arr, nlooks=(1, 2, 3))
 
     def test_zero_or_negative_nlooks(self):
@@ -109,7 +129,8 @@ class TestMultilook:
 
             # Check the warning category and message.
             assert issubclass(w[0].category, RuntimeWarning)
-            assert "..." in str(w[0].message)
+            substr = "input array shape is not an integer multiple of nlooks"
+            assert substr in str(w[0].message)
 
         # Check the output shape.
         assert output.shape == (5, 4)
