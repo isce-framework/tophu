@@ -56,10 +56,10 @@ def fft_upsample(
     ratio: Union[SupportsInt, Iterable[SupportsInt]],
     axes: Union[SupportsIndex, Iterable[SupportsIndex], None] = None,
 ) -> NDArray:
-    """Upsample a discrete-time N-dimensional signal using a Fast Fourier Transform
-    (FFT)-based interpolation method.
+    """Upsample using a Fast Fourier Transform (FFT)-based interpolation method.
 
-    The input signal is assumed to be band-limited.
+    Upsample a discrete-time N-dimensional signal by zero-padding in the frequency
+    domain. The input signal is assumed to be band-limited.
 
     Parameters
     ----------
@@ -201,6 +201,8 @@ def upsample(
     axes : int, iterable of int, or None, optional
         Axis or axes to upsample. The default, `axes=None`, will upsample all axes in
         the input array.
+    method : {'fft'}, optional
+        Upsampling method. Currently, only 'fft' is supported.
 
     Returns
     -------

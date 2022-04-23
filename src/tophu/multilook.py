@@ -14,7 +14,7 @@
 
 import itertools
 import warnings
-from typing import Iterable, SupportsInt, Union
+from typing import Iterable, SupportsInt, Tuple, Union, cast
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -63,6 +63,9 @@ def multilook(arr: ArrayLike, nlooks: Union[int, Iterable[int]]) -> NDArray:
                 f" array rank ({arr.ndim})"
             )
 
+    # Convince static type checkers that `nlooks` is a tuple of ints now.
+    nlooks = cast(Tuple[int, ...], nlooks)
+
     # The number of looks must be at least 1 and at most the size of the input array
     # along the corresponding axis.
     for m, n in zip(arr.shape, nlooks):
@@ -93,7 +96,7 @@ def multilook(arr: ArrayLike, nlooks: Union[int, Iterable[int]]) -> NDArray:
     # cells within each multilook window.
     subindices = (range(n) for n in nlooks)
     for index in itertools.product(*subindices):
-        s = tuple(slice(i, j * k, k) for i, j, k in zip(index, out_shape, nlooks))
+        s = tuple([slice(i, j * k, k) for i, j, k in zip(index, out_shape, nlooks)])
         out += w * arr[s]
 
     return out
