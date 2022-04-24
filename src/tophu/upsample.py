@@ -24,10 +24,11 @@ __all__ = [
 ]
 
 
-def normalize_axis_tuple(
-    axes: Union[SupportsIndex, Iterable[SupportsIndex], None],
-    ndim: int,
-) -> Tuple[int, ...]:
+IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
+IndexOrIndicesOrNone = Union[SupportsIndex, Iterable[SupportsIndex], None]
+
+
+def normalize_axis_tuple(axes: IndexOrIndicesOrNone, ndim: int) -> Tuple[int, ...]:
     """Normalize an axis argument into a tuple of nonnegative integer axes.
 
     Forbids any axis from being specified multiple times.
@@ -53,8 +54,8 @@ def normalize_axis_tuple(
 
 def fft_upsample(
     data: ArrayLike,
-    ratio: Union[SupportsInt, Iterable[SupportsInt]],
-    axes: Union[SupportsIndex, Iterable[SupportsIndex], None] = None,
+    ratio: IntOrInts,
+    axes: IndexOrIndicesOrNone = None,
 ) -> NDArray:
     """Upsample using a Fast Fourier Transform (FFT)-based interpolation method.
 
@@ -184,8 +185,8 @@ def fft_upsample(
 
 def upsample(
     data: ArrayLike,
-    ratio: Union[int, Iterable[int]],
-    axes: Union[int, Iterable[int], None] = None,
+    ratio: IntOrInts,
+    axes: IndexOrIndicesOrNone = None,
     *,
     method: Literal["fft"] = "fft",
 ) -> NDArray:
