@@ -1,0 +1,45 @@
+name: workflows
+
+on: [pull_request, push]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    strategy:
+      matrix:
+        os:
+          - label: Linux
+            runner: ubuntu-latest
+          - label: MacOS
+            runner: macos-latest
+        deps:
+          - label: Latest
+            spec: ""
+          - label: Minimum
+            spec: |
+              numpy=1.21
+              python=3.8
+              scipy=1.5
+      fail-fast: false
+    name: ${{ matrix.os.label }} • ${{matrix.deps.label }}
+    runs-on: ${{ matrix.os.runner }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup environment
+        uses: mamba-org/provision-with-micromamba@main
+        with:
+          extra-specs: ${{ matrix.deps.spec }}
+      - name: Install
+        run: |
+          pip install .
+      - name: Test
+        run: |
+          pip install pytest
+          pytest test
