@@ -1,6 +1,6 @@
 *.egg-info/
-.mpypy_cache/
-__pycache__/
 *.py[cod]
+.mpypy_cache/
 .pytest_cache/
+__pycache__/
 coverage.xml
