@@ -41,5 +41,7 @@ jobs:
           pip install .
       - name: Test
         run: |
-          pip install pytest
-          pytest test
+          pip install pytest pytest-cov
+          pytest --cov=tophu --cov-report=xml test
+      - name: Coverage report
+        uses: codecov/codecov-action@v2
