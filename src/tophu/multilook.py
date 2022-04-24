@@ -24,7 +24,10 @@ __all__ = [
 ]
 
 
-def multilook(arr: ArrayLike, nlooks: Union[int, Iterable[int]]) -> NDArray:
+def multilook(
+    arr: ArrayLike,
+    nlooks: Union[SupportsInt, Iterable[SupportsInt]],
+) -> NDArray:
     """Multilook an array by simple averaging.
 
     Performs spatial averaging and decimation. Each element in the output array is the
