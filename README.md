@@ -1,15 +1,18 @@
-## tophu
+# tophu
+
+[![gha](https://github.com/opera-adt/tophu/actions/workflows/workflows.yml/badge.svg)](https://github.com/opera-adt/tophu/actions/workflows/workflows.yml)
+[![codecov](https://codecov.io/gh/opera-adt/tophu/branch/main/graph/badge.svg?token=ZKUODHKCQS)](https://codecov.io/gh/opera-adt/tophu)
 
 Multi-Scale 2-D Phase Unwrapping
 
-### Copyright
+## Copyright
 
 Copyright (c) 2022 California Institute of Technology (“Caltech”). U.S. Government
 sponsorship acknowledged.
 
 All rights reserved.
 
-### License
+## License
 
 This software is licensed under your choice of BSD-3-Clause or Apache-2.0 licenses. See
 the accompanying [LICENSE](LICENSE) file for further details.
