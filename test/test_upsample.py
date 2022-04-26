@@ -57,7 +57,7 @@ class TestUpsampleFFT:
         if dtype is complex:
             # Check phase error.
             phase_err = phasediff(output, expected)
-            assert np.max(phase_err) < 1e-12
+            assert np.max(phase_err) < 1e-11
 
     @pytest.mark.parametrize("ratio", [3, 4])
     @pytest.mark.parametrize("dtype", [float, complex])
@@ -103,7 +103,7 @@ class TestUpsampleFFT:
         if dtype is complex:
             # Check phase error.
             phase_err = phasediff(output, expected)
-            assert np.max(phase_err) < 1e-12
+            assert np.max(phase_err) < 1e-11
 
     def test_identity(self):
         # Reference signal.
