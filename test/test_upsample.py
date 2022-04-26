@@ -147,6 +147,13 @@ class TestUpsampleFFT:
         output_complex = tophu.upsample(data + 0j, ratio=2, method="fft")
         assert np.allclose(output_real + 0j, output_complex, rtol=1e-12, atol=1e-12)
 
+    def test_length_two(self):
+        # Test input data with length=2.
+        data = np.array([1.0 + 0.0j, 0.0 + 0.0j])
+        output = tophu.upsample(data, ratio=2, method="fft")
+        expected = np.array([1.0 + 0.0j, 0.5 + 0.0j, 0.0 + 0.0j, 0.5 + 0.0j])
+        assert np.allclose(output, expected, rtol=1e-12, atol=1e-12)
+
     def test_axis_order(self):
         # Check the output shape when ordering of `axes` is non-sequential.
         data = np.zeros((3, 4, 5), dtype=np.complex64)
@@ -181,3 +188,30 @@ class TestUpsampleFFT:
             tophu.upsample(data, ratio=3, axes=(2, 2), method="fft")
         with pytest.raises(ValueError, match="repeated axis"):
             tophu.upsample(data, ratio=3, axes=(2, -1), method="fft")
+
+
+class TestUpsampleNearest:
+    @pytest.mark.parametrize("order", ["C_CONTIGUOUS", "F_CONTIGUOUS"])
+    def test_upsample(self, order):
+        input = np.arange(60).reshape(3, 4, 5)
+
+        if order == "F_CONTIGUOUS":
+            input = np.asfortranarray(input)
+        assert input.flags[order]
+
+        ratio = (3, 2, 1)
+        output = tophu.upsample(input, ratio=ratio, method="nearest")
+
+        expected = input
+        for axis, r in zip(range(input.ndim), ratio):
+            expected = np.repeat(expected, repeats=r, axis=axis)
+
+        assert np.allclose(output, expected, rtol=1e-12, atol=1e-12)
+
+
+class TestUpsample:
+    def test_bad_method(self):
+        # Check that `upsample()` fails if `method` is invalid.
+        data = np.zeros((4, 5), dtype=np.complex64)
+        with pytest.raises(ValueError, match="unsupported method 'asdf'"):
+            tophu.upsample(data, ratio=2, method="asdf")

@@ -26,6 +26,7 @@ __all__ = [
 
 IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
 IndexOrIndicesOrNone = Union[SupportsIndex, Iterable[SupportsIndex], None]
+UpsampleMethod = Literal["fft", "nearest"]
 
 
 def normalize_axis_tuple(axes: IndexOrIndicesOrNone, ndim: int) -> Tuple[int, ...]:
@@ -52,7 +53,7 @@ def normalize_axis_tuple(axes: IndexOrIndicesOrNone, ndim: int) -> Tuple[int, ..
         return np.core.numeric.normalize_axis_tuple(axes, ndim)  # type: ignore
 
 
-def fft_upsample(
+def upsample_fft(
     data: ArrayLike,
     ratio: IntOrInts,
     axes: IndexOrIndicesOrNone = None,
@@ -124,12 +125,12 @@ def fft_upsample(
 
     # We will extend the frequency domain by zero-padding high frequencies. First, get
     # the shape of the zero-padded array.
-    out_shape = list(data.shape)
-    for r, axis in zip(ratio, axes):
-        out_shape[axis] = data.shape[axis] * r
+    newshape = list(data.shape)
+    for axis, r in zip(axes, ratio):
+        newshape[axis] *= r
 
     # Initialize the padded array with zeros.
-    Y = np.zeros(out_shape, dtype=X.dtype)
+    Y = np.zeros_like(X, shape=newshape)
 
     # Get a slice object containing the positive frequency bins, including the DC and
     # Nyquist component (if present), of a frequency domain signal of length `n`.
@@ -183,12 +184,78 @@ def fft_upsample(
         return y
 
 
+def upsample_nearest(
+    data: ArrayLike,
+    ratio: IntOrInts,
+    axes: IndexOrIndicesOrNone = None,
+) -> NDArray:
+    """Upsample an array using nearest neighbor interpolation.
+
+    Each element in `data` is repeated `ratio` times.
+
+    Parameters
+    ----------
+    data : array_like
+        Input array.
+    ratio : int or iterable of int
+        Upsampling ratio (along each axis to be upsampled). Must be greater than or
+        equal to 1.
+    axes : int, iterable of int, or None, optional
+        Axis or axes to upsample. The default, `axes=None`, will upsample all axes in
+        the input array.
+
+    Returns
+    -------
+    out : numpy.ndarray
+        Upsampled array.
+    """
+    data = np.asanyarray(data)
+    axes = normalize_axis_tuple(axes, data.ndim)
+
+    # Normalize `ratio` into a tuple with the same length as `axes`. If `ratio` was a
+    # scalar, upsample each axis by the same ratio.
+    if isinstance(ratio, SupportsInt):
+        r = int(ratio)
+        ratio = (r,) * len(axes)
+    else:
+        ratio = tuple([int(r) for r in ratio])
+        if len(ratio) != len(axes):
+            raise ValueError(
+                f"length mismatch: length of ratio ({len(ratio)}) must match number of"
+                f" upsample axes ({len(axes)})"
+            )
+
+    # Convince static type checkers that `ratio` is a tuple of ints now.
+    ratio = cast(Tuple[int, ...], ratio)
+
+    # Check for invalid values of `ratio`.
+    for r in ratio:
+        if r < 1:
+            raise ValueError("upsample ratio must be >= 1")
+
+    # Insert new dummy axes in both the input & output arrays of length 1 and `ratio`,
+    # respectively, and let NumPy's broadcasting rules handle duplicating values.
+    newaxes = np.asarray(axes) + 1
+    s1 = np.insert(data.shape, newaxes, np.ones_like(ratio))
+    s2 = np.insert(data.shape, newaxes, ratio)
+    out = np.empty_like(data, shape=s2)
+    out[:] = data.reshape(s1)
+
+    # Reshape output array, collapsing dummy axes.
+    newshape = list(data.shape)
+    for axis, r in zip(axes, ratio):
+        newshape[axis] *= r
+    out = out.reshape(newshape)
+
+    return out
+
+
 def upsample(
     data: ArrayLike,
     ratio: IntOrInts,
     axes: IndexOrIndicesOrNone = None,
     *,
-    method: Literal["fft"] = "fft",
+    method: UpsampleMethod = "fft",
 ) -> NDArray:
     """Upsample an N-dimensional array.
 
@@ -202,8 +269,13 @@ def upsample(
     axes : int, iterable of int, or None, optional
         Axis or axes to upsample. The default, `axes=None`, will upsample all axes in
         the input array.
-    method : {'fft'}, optional
-        Upsampling method. Currently, only 'fft' is supported.
+    method : {'fft', 'nearest'}, optional
+        Upsampling method.
+
+        'fft' (default)
+            Upsamples using a Fast Fourier Transform (FFT)-based interpolation method.
+        'nearest'
+            Upsamples using nearest neighbor interpolation.
 
     Returns
     -------
@@ -211,5 +283,7 @@ def upsample(
         Upsampled array.
     """
     if method == "fft":
-        return fft_upsample(data, ratio, axes)
+        return upsample_fft(data, ratio, axes)
+    if method == "nearest":
+        return upsample_nearest(data, ratio, axes)
     raise ValueError(f"unsupported method '{method}'")

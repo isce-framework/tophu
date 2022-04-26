@@ -90,7 +90,7 @@ def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
 
     # Initialize output array with zeros.
     out_shape = tuple([m // n for m, n in zip(arr.shape, nlooks)])
-    out = np.zeros(out_shape, dtype=arr.dtype, like=arr)
+    out = np.zeros_like(arr, shape=out_shape)
 
     # Normalization factor (uniform weighting).
     w = 1.0 / np.prod(nlooks)
