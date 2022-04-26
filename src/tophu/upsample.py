@@ -54,9 +54,9 @@ def normalize_axis_tuple(axes: IndexOrIndicesOrNone, ndim: int) -> Tuple[int, ..
 
 
 def upsample_fft(
-    data: ArrayLike,
-    ratio: IntOrInts,
-    axes: IndexOrIndicesOrNone = None,
+    data: NDArray,
+    ratio: Tuple[int, ...],
+    axes: Tuple[int, ...],
 ) -> NDArray:
     """Upsample using a Fast Fourier Transform (FFT)-based interpolation method.
 
@@ -65,14 +65,13 @@ def upsample_fft(
 
     Parameters
     ----------
-    data : array_like
+    data : numpy.ndarray
         Input array.
-    ratio : int or iterable of int
+    ratio : tuple of int
         Upsampling ratio (along each axis to be upsampled). Must be greater than or
         equal to 1.
-    axes : int, iterable of int, or None, optional
-        Axis or axes to upsample. The default, `axes=None`, will upsample all axes in
-        the input array.
+    axes : tuple of int
+        Axes to upsample.
 
     Returns
     -------
@@ -89,30 +88,6 @@ def upsample_fft(
     domain of the signal. This preserves Hermitian symmetry so that a resampled
     real-valued signal remains real-valued.
     """
-    data = np.asanyarray(data)
-    axes = normalize_axis_tuple(axes, data.ndim)
-
-    # Normalize `ratio` into a tuple with the same length as `axes`. If `ratio` was a
-    # scalar, upsample each axis by the same ratio.
-    if isinstance(ratio, SupportsInt):
-        r = int(ratio)
-        ratio = (r,) * len(axes)
-    else:
-        ratio = tuple([int(r) for r in ratio])
-        if len(ratio) != len(axes):
-            raise ValueError(
-                f"length mismatch: length of ratio ({len(ratio)}) must match number of"
-                f" upsample axes ({len(axes)})"
-            )
-
-    # Convince static type checkers that `ratio` is a tuple of ints now.
-    ratio = cast(Tuple[int, ...], ratio)
-
-    # Check for invalid values of `ratio`.
-    for r in ratio:
-        if r < 1:
-            raise ValueError("upsample ratio must be >= 1")
-
     # Check if input array is real-valued.
     real_input = np.isrealobj(data)
 
@@ -185,9 +160,9 @@ def upsample_fft(
 
 
 def upsample_nearest(
-    data: ArrayLike,
-    ratio: IntOrInts,
-    axes: IndexOrIndicesOrNone = None,
+    data: NDArray,
+    ratio: Tuple[int, ...],
+    axes: Tuple[int, ...],
 ) -> NDArray:
     """Upsample an array using nearest neighbor interpolation.
 
@@ -195,44 +170,19 @@ def upsample_nearest(
 
     Parameters
     ----------
-    data : array_like
+    data : numpy.ndarray
         Input array.
-    ratio : int or iterable of int
+    ratio : tuple of int
         Upsampling ratio (along each axis to be upsampled). Must be greater than or
         equal to 1.
-    axes : int, iterable of int, or None, optional
-        Axis or axes to upsample. The default, `axes=None`, will upsample all axes in
-        the input array.
+    axes : tuple of int
+        Axes to upsample.
 
     Returns
     -------
     out : numpy.ndarray
         Upsampled array.
     """
-    data = np.asanyarray(data)
-    axes = normalize_axis_tuple(axes, data.ndim)
-
-    # Normalize `ratio` into a tuple with the same length as `axes`. If `ratio` was a
-    # scalar, upsample each axis by the same ratio.
-    if isinstance(ratio, SupportsInt):
-        r = int(ratio)
-        ratio = (r,) * len(axes)
-    else:
-        ratio = tuple([int(r) for r in ratio])
-        if len(ratio) != len(axes):
-            raise ValueError(
-                f"length mismatch: length of ratio ({len(ratio)}) must match number of"
-                f" upsample axes ({len(axes)})"
-            )
-
-    # Convince static type checkers that `ratio` is a tuple of ints now.
-    ratio = cast(Tuple[int, ...], ratio)
-
-    # Check for invalid values of `ratio`.
-    for r in ratio:
-        if r < 1:
-            raise ValueError("upsample ratio must be >= 1")
-
     # Insert new dummy axes in both the input & output arrays of length 1 and `ratio`,
     # respectively, and let NumPy's broadcasting rules handle duplicating values.
     newaxes = np.asarray(axes) + 1
@@ -282,6 +232,30 @@ def upsample(
     out : numpy.ndarray
         Upsampled array.
     """
+    data = np.asanyarray(data)
+    axes = normalize_axis_tuple(axes, data.ndim)
+
+    # Normalize `ratio` into a tuple with the same length as `axes`. If `ratio` was a
+    # scalar, upsample each axis by the same ratio.
+    if isinstance(ratio, SupportsInt):
+        r = int(ratio)
+        ratio = (r,) * len(axes)
+    else:
+        ratio = tuple([int(r) for r in ratio])
+        if len(ratio) != len(axes):
+            raise ValueError(
+                f"length mismatch: length of ratio ({len(ratio)}) must match number of"
+                f" upsample axes ({len(axes)})"
+            )
+
+    # Convince static type checkers that `ratio` is a tuple of ints now.
+    ratio = cast(Tuple[int, ...], ratio)
+
+    # Check for invalid values of `ratio`.
+    for r in ratio:
+        if r < 1:
+            raise ValueError("upsample ratio must be >= 1")
+
     if method == "fft":
         return upsample_fft(data, ratio, axes)
     if method == "nearest":
