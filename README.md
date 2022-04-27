@@ -7,7 +7,7 @@ Multi-Scale 2-D Phase Unwrapping
 
 ## Copyright
 
-Copyright (c) 2022 California Institute of Technology (“Caltech”). U.S. Government
+Copyright (c) 2022 California Institute of Technology ("Caltech"). U.S. Government
 sponsorship acknowledged.
 
 All rights reserved.
