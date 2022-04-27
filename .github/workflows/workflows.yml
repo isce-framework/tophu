@@ -42,6 +42,6 @@ jobs:
       - name: Test
         run: |
           pip install pytest pytest-cov
-          pytest --cov=tophu --cov-report=xml test
+          pytest --cov=tophu --cov-report=xml
       - name: Coverage report
         uses: codecov/codecov-action@v2
