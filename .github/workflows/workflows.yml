@@ -41,7 +41,7 @@ jobs:
           pip install .
       - name: Test
         run: |
-          pip install pytest pytest-cov
-          pytest --cov=tophu --cov-report=xml
+          micromamba install -f test/environment.yml
+          pytest --cov-report=xml
       - name: Coverage report
         uses: codecov/codecov-action@v2

@@ -17,5 +17,7 @@ ignore_missing_imports = true
 ignore = "D100,D104,D105,D203,D204,D213,D413"
 
 [tool.pytest.ini_options]
-addopts = "-W=error"
+minversion = "6.0"
+addopts = "-ra --cov=tophu"
+filterwarnings = ["error"]
 testpaths = ["test"]

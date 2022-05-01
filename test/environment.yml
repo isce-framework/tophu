@@ -1,0 +1,7 @@
+name: tophu
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - pytest>=6.0
+  - pytest-cov
