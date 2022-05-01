@@ -1,3 +1,4 @@
+from .filter import *
 from .multilook import *
 from .upsample import *
 
