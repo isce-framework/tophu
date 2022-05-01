@@ -39,6 +39,11 @@ repos:
     hooks:
       - id: mypy
 
+  - repo: https://github.com/hadialqattan/pycln
+    rev: "v1.3.2"
+    hooks:
+      - id: pycln
+
   - repo: https://github.com/PyCQA/pydocstyle
     rev: "6.1.1"
     hooks:
