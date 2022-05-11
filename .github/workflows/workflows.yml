@@ -39,7 +39,7 @@ jobs:
           extra-specs: ${{ matrix.deps.spec }}
       - name: Install
         run: |
-          pip install .
+          pip install --no-deps .
       - name: Test
         run: |
           micromamba install -f test/environment.yml
