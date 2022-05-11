@@ -3,6 +3,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
+  - isce3>=0.5
   - numpy>=1.21
   - python>=3.8
   - scipy>=1.5
