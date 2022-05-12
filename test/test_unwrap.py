@@ -3,16 +3,16 @@ import pytest
 import tophu
 
 
-class TestUnwrapFunc:
+class TestUnwrapCallback:
     def test_abstract_class(self):
-        # Check that `UnwrapFunc` is an abstract class -- it cannot be directly
+        # Check that `UnwrapCallback` is an abstract class -- it cannot be directly
         # instantiated.
         with pytest.raises(TypeError, match="Protocols cannot be instantiated"):
-            tophu.UnwrapFunc()
+            tophu.UnwrapCallback()
 
 
 class TestSnaphuUnwrapper:
     def test_interface(self):
         # Check that `SnaphuUnwrapper` satisfies the interface requirements of
-        # `UnwrapFunc`.
-        assert issubclass(tophu.SnaphuUnwrapper, tophu.UnwrapFunc)
+        # `UnwrapCallback`.
+        assert issubclass(tophu.SnaphuUnwrap, tophu.UnwrapCallback)

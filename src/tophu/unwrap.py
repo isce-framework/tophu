@@ -7,20 +7,26 @@ from isce3.unwrap import snaphu
 from numpy.typing import ArrayLike, DTypeLike, NDArray
 
 __all__ = [
-    "SnaphuUnwrapper",
-    "UnwrapFunc",
+    "SnaphuUnwrap",
+    "UnwrapCallback",
 ]
 
 
 @runtime_checkable
-class UnwrapFunc(Protocol):
-    """Abstract interface for phase unwrapping algorithms."""
+class UnwrapCallback(Protocol):
+    """Callback protocol for two-dimensional phase unwrapping algorithms.
+
+    `UnwrapCallback` defines the abstract interface that unwrapping implementations are
+    expected to conform to in order to "plug in" to the multi-scale unwrapping
+    framework.
+    """
 
     def __call__(
         self,
         igram: NDArray[np.complexfloating],
         corrcoef: NDArray[np.floating],
         nlooks: float,
+        pwr: Optional[NDArray[np.floating]],
         mask: Optional[NDArray[np.bool_]],
         unwest: Optional[NDArray[np.floating]],
     ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
@@ -35,13 +41,16 @@ class UnwrapFunc(Protocol):
             same shape as the input interferogram.
         nlooks : float
             Effective number of spatial looks used to form the input correlation data.
+        pwr : numpy.ndarray or None, optional
+            Optional average intensity of the two Single-Look Complex (SLC) images, in
+            linear units, with the same shape as the input interferogram.
         mask : numpy.ndarray or None, optional
-            Boolean mask of valid pixels, with the same shape as the input
+            Optional boolean mask of valid pixels, with the same shape as the input
             interferogram. A `True` value indicates that the corresponding pixel was
             valid. (default: None)
         unwest : numpy.ndarray or None, optional
-            Initial estimate of the unwrapped phase, in radians, with the same shape as
-            the input interferogram. (default: None)
+            Optional initial estimate of the unwrapped phase, in radians, with the same
+            shape as the input interferogram. (default: None)
 
         Returns
         -------
@@ -54,20 +63,26 @@ class UnwrapFunc(Protocol):
 
 
 @dataclasses.dataclass
-class SnaphuUnwrapper(UnwrapFunc):
-    """SNAPHU phase unwrapping algorithm.
+class SnaphuUnwrap(UnwrapCallback):
+    """Callback functor for unwrapping using SNAPHU [1]_.
 
     Attributes
     ----------
-    cost : {'defo', 'smooth', 'p-norm'}
+    cost : {'topo', 'defo', 'smooth', 'p-norm'}
         Statistical cost mode.
     cost_params : isce3.unwrap.snaphu.CostParams or None
         Configuration parameters for the specified cost mode.
     init_method : {'mst', 'mcf'}
         Algorithm used for initialization of unwrapped phase gradients.
+
+    References
+    ----------
+    .. [1] C. W. Chen and H. A. Zebker, "Two-dimensional phase unwrapping with use of
+        statistical models for cost functions in nonlinear optimization," Journal of the
+        Optical Society of America A, vol. 18, pp. 338-351 (2001).
     """
 
-    cost: Literal["defo", "smooth", "p-norm"] = "smooth"
+    cost: Literal["topo", "defo", "smooth", "p-norm"] = "smooth"
     cost_params: Optional[snaphu.CostParams] = None
     init_method: Literal["mst", "mcf"] = "mcf"
 
@@ -76,10 +91,11 @@ class SnaphuUnwrapper(UnwrapFunc):
         igram: NDArray[np.complexfloating],
         corrcoef: NDArray[np.floating],
         nlooks: float,
+        pwr: Optional[NDArray[np.floating]],
         mask: Optional[NDArray[np.bool_]],
         unwest: Optional[NDArray[np.floating]],
     ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
-        """Perform two-dimensional phase unwrapping using SNAPHU [1]_.
+        """Perform two-dimensional phase unwrapping using SNAPHU.
 
         Parameters
         ----------
@@ -90,6 +106,9 @@ class SnaphuUnwrapper(UnwrapFunc):
             same shape as the input interferogram.
         nlooks : float
             Effective number of spatial looks used to form the input correlation data.
+        pwr : numpy.ndarray or None, optional
+            Optional average intensity of the two Single-Look Complex (SLC) images, in
+            linear units, with the same shape as the input interferogram.
         mask : numpy.ndarray or None, optional
             Boolean mask of valid pixels, with the same shape as the input
             interferogram. A `True` value indicates that the corresponding pixel was
@@ -104,12 +123,6 @@ class SnaphuUnwrapper(UnwrapFunc):
             Unwrapped phase, in radians.
         conncomp : numpy.ndarray
             Connected component labels, with the same shape as the unwrapped phase.
-
-        References
-        ----------
-        .. [1] C. W. Chen and H. A. Zebker, "Two-dimensional phase unwrapping with use
-            of statistical models for cost functions in nonlinear optimization," Journal
-            of the Optical Society of America A, vol. 18, pp. 338-351 (2001).
         """
 
         def as_raster(arr: ArrayLike, dtype: DTypeLike) -> Raster:
@@ -119,6 +132,8 @@ class SnaphuUnwrapper(UnwrapFunc):
         # Convert input arrays to GDAL rasters.
         igram = as_raster(igram, np.complex64)
         corrcoef = as_raster(corrcoef, np.float32)
+        if pwr is not None:
+            pwr = as_raster(pwr, np.float32)
         if mask is not None:
             mask = as_raster(mask, np.uint8)
         if unwest is not None:
@@ -141,6 +156,7 @@ class SnaphuUnwrapper(UnwrapFunc):
             cost=self.cost,
             cost_params=self.cost_params,
             init_method=self.init_method,
+            pwr=pwr,
             mask=mask,
             unwest=unwest,
         )
