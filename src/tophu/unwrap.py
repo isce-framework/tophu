@@ -72,6 +72,8 @@ class SnaphuUnwrap(UnwrapCallback):
         Statistical cost mode.
     cost_params : isce3.unwrap.snaphu.CostParams or None
         Configuration parameters for the specified cost mode.
+    init_method : {'mst', 'mcf'}
+        Initialization method.
 
     References
     ----------
@@ -82,10 +84,13 @@ class SnaphuUnwrap(UnwrapCallback):
 
     cost: Literal["topo", "defo", "smooth", "p-norm"] = "smooth"
     cost_params: Optional[snaphu.CostParams] = None
+    init_method: Literal["mst", "mcf"] = "mcf"
 
     def __post_init__(self):
         if self.cost not in {"topo", "defo", "smooth", "p-norm"}:
             raise ValueError(f"unexpected cost mode '{self.cost}'")
+        if self.init_method not in {"mst", "mcf"}:
+            raise ValueError(f"unexpected initialization method '{self.init_method}'")
 
     def __call__(
         self,
@@ -156,6 +161,7 @@ class SnaphuUnwrap(UnwrapCallback):
             nlooks=nlooks,
             cost=self.cost,
             cost_params=self.cost_params,
+            init_method=self.init_method,
             pwr=pwr,
             mask=mask,
             unwest=unwest,

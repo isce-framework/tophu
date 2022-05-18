@@ -26,6 +26,10 @@ class TestSnaphuUnwrapper:
         with pytest.raises(ValueError, match="unexpected cost mode"):
             tophu.SnaphuUnwrap(cost="asdf")
 
+    def test_bad_init_method(self):
+        with pytest.raises(ValueError, match="unexpected initialization method"):
+            tophu.SnaphuUnwrap(init_method="asdf")
+
     def test_snaphu(self):
         # Radar sensor/geometry parameters.
         bperp = 500.0
