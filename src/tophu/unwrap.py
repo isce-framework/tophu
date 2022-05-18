@@ -72,8 +72,6 @@ class SnaphuUnwrap(UnwrapCallback):
         Statistical cost mode.
     cost_params : isce3.unwrap.snaphu.CostParams or None
         Configuration parameters for the specified cost mode.
-    init_method : {'mst', 'mcf'}
-        Algorithm used for initialization of unwrapped phase gradients.
 
     References
     ----------
@@ -84,16 +82,19 @@ class SnaphuUnwrap(UnwrapCallback):
 
     cost: Literal["topo", "defo", "smooth", "p-norm"] = "smooth"
     cost_params: Optional[snaphu.CostParams] = None
-    init_method: Literal["mst", "mcf"] = "mcf"
+
+    def __post_init__(self):
+        if self.cost not in {"topo", "defo", "smooth", "p-norm"}:
+            raise ValueError(f"unexpected cost mode '{self.cost}'")
 
     def __call__(
         self,
         igram: NDArray[np.complexfloating],
         corrcoef: NDArray[np.floating],
         nlooks: float,
-        pwr: Optional[NDArray[np.floating]],
-        mask: Optional[NDArray[np.bool_]],
-        unwest: Optional[NDArray[np.floating]],
+        pwr: Optional[NDArray[np.floating]] = None,
+        mask: Optional[NDArray[np.bool_]] = None,
+        unwest: Optional[NDArray[np.floating]] = None,
     ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         """Perform two-dimensional phase unwrapping using SNAPHU.
 
@@ -155,7 +156,6 @@ class SnaphuUnwrap(UnwrapCallback):
             nlooks=nlooks,
             cost=self.cost,
             cost_params=self.cost_params,
-            init_method=self.init_method,
             pwr=pwr,
             mask=mask,
             unwest=unwest,
