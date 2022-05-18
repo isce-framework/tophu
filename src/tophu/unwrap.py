@@ -4,7 +4,7 @@ from typing import Literal, Optional, Protocol, Tuple, runtime_checkable
 import numpy as np
 from isce3.io.gdal import Raster
 from isce3.unwrap import snaphu
-from numpy.typing import ArrayLike, DTypeLike, NDArray
+from numpy.typing import NDArray
 
 __all__ = [
     "SnaphuUnwrap",
@@ -130,20 +130,24 @@ class SnaphuUnwrap(UnwrapCallback):
         conncomp : numpy.ndarray
             Connected component labels, with the same shape as the unwrapped phase.
         """
+        # Convert input arrays to GDAL rasters with the expected datatypes.
+        igram_data = np.asanyarray(igram, dtype=np.complex64)
+        igram = Raster(igram_data)
 
-        def as_raster(arr: ArrayLike, dtype: DTypeLike) -> Raster:
-            arr = np.asanyarray(arr, dtype=dtype)
-            return Raster(arr)
+        corrcoef_data = np.asanyarray(corrcoef, dtype=np.float32)
+        corrcoef = Raster(corrcoef_data)
 
-        # Convert input arrays to GDAL rasters.
-        igram = as_raster(igram, np.complex64)
-        corrcoef = as_raster(corrcoef, np.float32)
         if pwr is not None:
-            pwr = as_raster(pwr, np.float32)
+            pwr_data = np.asanyarray(pwr, dtype=np.float32)
+            pwr = Raster(pwr_data)
+
         if mask is not None:
-            mask = as_raster(mask, np.uint8)
+            mask_data = np.asanyarray(pwr, dtype=np.uint8)
+            mask = Raster(mask_data)
+
         if unwest is not None:
-            unwest = as_raster(unwest, np.float32)
+            unwest_data = np.asanyarray(unwest, dtype=np.float32)
+            unwest = Raster(unwest_data)
 
         # Get interferogram shape.
         shape = (igram.length, igram.width)
