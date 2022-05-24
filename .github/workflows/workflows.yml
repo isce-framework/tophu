@@ -13,8 +13,6 @@ jobs:
         os:
           - label: Linux
             runner: ubuntu-latest
-          - label: MacOS
-            runner: macos-latest
         deps:
           - label: Latest
             spec: ""
