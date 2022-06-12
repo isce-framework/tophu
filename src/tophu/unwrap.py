@@ -1,9 +1,8 @@
 import dataclasses
 from typing import Literal, Optional, Protocol, Tuple, runtime_checkable
 
+import isce3
 import numpy as np
-from isce3.io.gdal import Raster
-from isce3.unwrap import snaphu
 from numpy.typing import NDArray
 
 __all__ = [
@@ -26,9 +25,6 @@ class UnwrapCallback(Protocol):
         igram: NDArray[np.complexfloating],
         corrcoef: NDArray[np.floating],
         nlooks: float,
-        pwr: Optional[NDArray[np.floating]],
-        mask: Optional[NDArray[np.bool_]],
-        unwest: Optional[NDArray[np.floating]],
     ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         """Perform two-dimensional phase unwrapping.
 
@@ -41,16 +37,6 @@ class UnwrapCallback(Protocol):
             same shape as the input interferogram.
         nlooks : float
             Effective number of spatial looks used to form the input correlation data.
-        pwr : numpy.ndarray or None, optional
-            Optional average intensity of the two Single-Look Complex (SLC) images, in
-            linear units, with the same shape as the input interferogram.
-        mask : numpy.ndarray or None, optional
-            Optional boolean mask of valid pixels, with the same shape as the input
-            interferogram. A `True` value indicates that the corresponding pixel was
-            valid. (default: None)
-        unwest : numpy.ndarray or None, optional
-            Optional initial estimate of the unwrapped phase, in radians, with the same
-            shape as the input interferogram. (default: None)
 
         Returns
         -------
@@ -83,7 +69,7 @@ class SnaphuUnwrap(UnwrapCallback):
     """
 
     cost: Literal["topo", "defo", "smooth", "p-norm"] = "smooth"
-    cost_params: Optional[snaphu.CostParams] = None
+    cost_params: Optional[isce3.unwrap.snaphu.CostParams] = None
     init_method: Literal["mst", "mcf"] = "mcf"
 
     def __post_init__(self):
@@ -97,9 +83,6 @@ class SnaphuUnwrap(UnwrapCallback):
         igram: NDArray[np.complexfloating],
         corrcoef: NDArray[np.floating],
         nlooks: float,
-        pwr: Optional[NDArray[np.floating]] = None,
-        mask: Optional[NDArray[np.bool_]] = None,
-        unwest: Optional[NDArray[np.floating]] = None,
     ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         """Perform two-dimensional phase unwrapping using SNAPHU.
 
@@ -112,16 +95,6 @@ class SnaphuUnwrap(UnwrapCallback):
             same shape as the input interferogram.
         nlooks : float
             Effective number of spatial looks used to form the input correlation data.
-        pwr : numpy.ndarray or None, optional
-            Optional average intensity of the two Single-Look Complex (SLC) images, in
-            linear units, with the same shape as the input interferogram.
-        mask : numpy.ndarray or None, optional
-            Boolean mask of valid pixels, with the same shape as the input
-            interferogram. A `True` value indicates that the corresponding pixel was
-            valid. (default: None)
-        unwest : numpy.ndarray or None, optional
-            Initial estimate of the unwrapped phase, in radians, with the same shape as
-            the input interferogram. (default: None)
 
         Returns
         -------
@@ -132,22 +105,10 @@ class SnaphuUnwrap(UnwrapCallback):
         """
         # Convert input arrays to GDAL rasters with the expected datatypes.
         igram_data = np.asanyarray(igram, dtype=np.complex64)
-        igram = Raster(igram_data)
+        igram = isce3.io.gdal.Raster(igram_data)
 
         corrcoef_data = np.asanyarray(corrcoef, dtype=np.float32)
-        corrcoef = Raster(corrcoef_data)
-
-        if pwr is not None:
-            pwr_data = np.asanyarray(pwr, dtype=np.float32)
-            pwr = Raster(pwr_data)
-
-        if mask is not None:
-            mask_data = np.asanyarray(pwr, dtype=np.uint8)
-            mask = Raster(mask_data)
-
-        if unwest is not None:
-            unwest_data = np.asanyarray(unwest, dtype=np.float32)
-            unwest = Raster(unwest_data)
+        corrcoef = isce3.io.gdal.Raster(corrcoef_data)
 
         # Get interferogram shape.
         shape = (igram.length, igram.width)
@@ -157,18 +118,15 @@ class SnaphuUnwrap(UnwrapCallback):
         conncomp = np.zeros(shape, dtype=np.uint32)
 
         # Run SNAPHU.
-        snaphu.unwrap(
-            unw=Raster(unwphase),
-            conncomp=Raster(conncomp),
+        isce3.unwrap.snaphu.unwrap(
+            unw=isce3.io.gdal.Raster(unwphase),
+            conncomp=isce3.io.gdal.Raster(conncomp),
             igram=igram,
             corr=corrcoef,
             nlooks=nlooks,
             cost=self.cost,
             cost_params=self.cost_params,
             init_method=self.init_method,
-            pwr=pwr,
-            mask=mask,
-            unwest=unwest,
         )
 
         return unwphase, conncomp

@@ -195,7 +195,8 @@ def bandpass_equiripple_filter(
         n = len(signal)
         dt = 1.0 / fs
         t = dt * np.arange(n)
-        return signal * np.exp(2.0j * np.pi * f * t)
+        phase = 2.0 * np.pi * f * t
+        return signal * np.exp(1.0j * phase)
 
     # If `centerfreq` is nonzero, convert lowpass filter to bandpass filter by up/down
     # conversion (frequency shift).
