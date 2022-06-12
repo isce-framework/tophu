@@ -6,4 +6,5 @@ dependencies:
   - isce3>=0.6
   - numpy>=1.21
   - python>=3.8
+  - rasterio>=1.0
   - scipy>=1.5
