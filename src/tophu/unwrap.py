@@ -1,11 +1,18 @@
 import dataclasses
+import warnings
+from os import PathLike
+from pathlib import Path
+from rasterio.errors import NotGeoreferencedWarning
+from tempfile import TemporaryDirectory
 from typing import Literal, Optional, Protocol, Tuple, runtime_checkable
 
 import isce3
 import numpy as np
-from numpy.typing import NDArray
+import rasterio
+from numpy.typing import DTypeLike, NDArray
 
 __all__ = [
+    "ICUUnwrap",
     "SnaphuUnwrap",
     "UnwrapCallback",
 ]
@@ -128,5 +135,251 @@ class SnaphuUnwrap(UnwrapCallback):
             cost_params=self.cost_params,
             init_method=self.init_method,
         )
+
+        return unwphase, conncomp
+
+
+def isodd(n: int) -> bool:
+    """Check if the input is odd-valued."""
+    return n & 1 == 1
+
+
+def create_geotiff(
+    path: PathLike,
+    *,
+    width: int,
+    length: int,
+    dtype: DTypeLike,
+) -> isce3.io.Raster:
+    """Create a new single-band GeoTiff dataset.
+
+    Parameters
+    ----------
+    path : path_like
+        Filesystem path of the new dataset.
+    width : int
+        Raster width.
+    length : int
+        Raster length.
+    dtype : dtype_like
+        Raster datatype.
+
+    Returns
+    -------
+    dataset : isce3.io.Raster
+        Created dataset, opened in read/write mode.
+    """
+    # Create a new dataset.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=NotGeoreferencedWarning)
+        with rasterio.open(
+            path,
+            mode="w",
+            driver="GTiff",
+            width=width,
+            height=length,
+            count=1,
+            dtype=dtype,
+        ):
+            pass
+
+    # Open the dataset as an `isce3.io.Raster` in read/write mode.
+    return isce3.io.Raster(str(path), update=True)
+
+
+def to_geotiff(path: PathLike, arr: NDArray) -> isce3.io.Raster:
+    """Write array data to a new single-band GeoTiff dataset.
+
+    Parameters
+    ----------
+    path : path_like
+        Filesystem path of the new dataset.
+    arr : numpy.ndarray
+        2-dimensional array.
+
+    Returns
+    -------
+    dataset : isce3.io.Raster
+        Created dataset, opened in read-only mode.
+    """
+    # Create a new dataset.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=NotGeoreferencedWarning)
+        with rasterio.open(
+            path,
+            mode="w",
+            driver="GTiff",
+            width=arr.shape[1],
+            height=arr.shape[0],
+            count=1,
+            dtype=arr.dtype,
+        ) as dataset:
+            # Write array data to first band in dataset.
+            dataset.write(arr, 1)
+
+    # Open the dataset as an `isce3.io.Raster` in read-only mode.
+    return isce3.io.Raster(str(path))
+
+
+def read_raster(path: PathLike, band: int = 1) -> NDArray:
+    """Read raster data from a dataset as an array.
+
+    Parameters
+    ----------
+    path : path_like
+        Filesystem path of the dataset to read.
+    band : int, optional
+        (1-based) band index of the raster to read. (default: 1)
+
+    Returns
+    -------
+    arr : numpy.ndarray
+        Array containing raster data.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=NotGeoreferencedWarning)
+        with rasterio.open(path, mode="r") as dataset:
+            return dataset.read(band)
+
+
+@dataclasses.dataclass
+class ICUUnwrap(UnwrapCallback):
+    """Callback functor for unwrapping using ICU.
+
+    Attributes
+    ----------
+    min_coherence : float, optional
+        Minimum coherence of valid data. Pixels with lower coherence are masked out.
+        (default: 0.1)
+    ntrees : int, optional
+        Number of randomized tree realizations to generate. (default: 7)
+    max_branch_length : int, optional
+        Maximum length of a branch cut between residues/neutrons. (default: 64)
+    use_phasegrad_neutrons : bool, optional
+        Whether to use phase gradient neutrons. (default: False)
+    use_intensity_neutrons : bool, optional
+        Whether ot use intensity neutrons, (default: False)
+    phasegrad_window_size : int, optional
+        Window size for estimating phase gradients. This parameter is ignored if
+        `use_phasegrad_neutrons` was false. (default: 5)
+    neutron_phasegrad_thresh : float, optional
+        Absolute phase gradient threshold for detecting phase gradient neutrons, in
+        radians per sample. This parameter is ignored if `use_phasegrad_neutrons` was
+        false. (default: 3)
+    neutron_intensity_thresh : float, optional
+        Intensity variation threshold for detecting intensity neutrons, in standard
+        deviations from the mean (based on local image statistics). This parameter is
+        ignored if `use_intensity_neutrons` was false. (default: 8)
+    neutron_coherence_thresh : float, optional
+        Correlation coefficient threshold for detecting intensity neutrons. This
+        parameter is ignored if `use_intensity_neutrons` was false. (default: 0.8)
+    min_conncomp_frac_area : float, optional
+        Minimum connected component size as a fraction of the total size of the
+        interferogram tile. (default: 1/320)
+    """
+
+    min_coherence: float = 0.1
+    ntrees: int = 7
+    max_branch_length: int = 64
+    use_phasegrad_neutrons: bool = False
+    use_intensity_neutrons: bool = False
+    phasegrad_window_size: int = 5
+    neutron_phasegrad_thresh: float = 3.0
+    neutron_intensity_thresh: float = 8.0
+    neutron_coherence_thresh: float = 0.8
+    min_conncomp_area_frac: float = 1.0 / 320.0
+
+    def __post_init__(self):
+        if not (0.0 <= self.min_coherence <= 1.0):
+            raise ValueError("minimum coherence must be between 0 and 1")
+        if self.ntrees < 1:
+            raise ValueError("number of tree realizations must be >= 1")
+        if self.max_branch_length < 1:
+            raise ValueError("max branch length must be >= 1")
+        if self.phasegrad_window_size < 1:
+            raise ValueError("phase gradient window size must be >= 1")
+        if not isodd(self.phasegrad_window_size):
+            raise ValueError("phase gradient window size must be odd-valued")
+        if self.neutron_phasegrad_thresh <= 0.0:
+            raise ValueError("neutron phase gradient threshold must be > 0")
+        if self.neutron_intensity_thresh <= 0.0:
+            raise ValueError("neutron intensity variation threshold must be > 0")
+        if not (0.0 <= self.neutron_coherence_thresh <= 1.0):
+            raise ValueError("neutron coherence threshold must be between 0 and 1")
+        if self.min_conncomp_area_frac <= 0.0:
+            raise ValueError("minimum connected component size must be > 0")
+
+    def __call__(
+        self,
+        igram: NDArray[np.complexfloating],
+        corrcoef: NDArray[np.floating],
+        nlooks: float,
+    ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
+        """Perform two-dimensional phase unwrapping using ICU.
+
+        Parameters
+        ----------
+        igram : numpy.ndarray
+            Input interferogram.
+        corrcoef : numpy.ndarray
+            Sample correlation coefficient, normalized to the interval [0, 1], with the
+            same shape as the input interferogram.
+        nlooks : float
+            Effective number of spatial looks used to form the input correlation data.
+
+        Returns
+        -------
+        unwphase : numpy.ndarray
+            Unwrapped phase, in radians.
+        conncomp : numpy.ndarray
+            Connected component labels, with the same shape as the unwrapped phase.
+        """
+        # Configure ICU to unwrap the interferogram as a single tile (no bootstrapping).
+        icu = isce3.unwrap.ICU(
+            buffer_lines=len(igram),
+            use_phase_grad_neut=self.use_phasegrad_neutrons,
+            use_intensity_neut=self.use_intensity_neutrons,
+            phase_grad_win_size=self.phasegrad_window_size,
+            neut_phase_grad_thr=self.neutron_phasegrad_thresh,
+            neut_intensity_thr=self.neutron_intensity_thresh,
+            neut_correlation_thr=self.neutron_coherence_thresh,
+            trees_number=self.ntrees,
+            max_branch_length=self.max_branch_length,
+            init_corr_thr=self.min_coherence,
+            min_cc_area=self.min_conncomp_area_frac,
+        )
+
+        # Create a temporary scratch directory to store intermediate rasters.
+        with TemporaryDirectory() as tmpdir:
+            d = Path(tmpdir)
+
+            # Convert input arrays into rasters.
+            igram_raster = to_geotiff(d / "igram.tif", igram)
+            corrcoef_raster = to_geotiff(d / "corrcoef.tif", corrcoef)
+
+            # Create zero-filled rasters to store output data.
+            unwphase_raster = create_geotiff(
+                d / "unwphase.tif",
+                width=igram.shape[1],
+                length=igram.shape[0],
+                dtype=np.float32,
+            )
+            conncomp_raster = create_geotiff(
+                d / "conncomp.tif",
+                width=igram.shape[1],
+                length=igram.shape[0],
+                dtype=np.uint8,
+            )
+
+            # Run ICU.
+            icu.unwrap(unwphase_raster, conncomp_raster, igram_raster, corrcoef_raster)
+
+            # Ensure changes to output rasters are flushed to disk and close the files.
+            del unwphase_raster
+            del conncomp_raster
+
+            # Read output rasters into in-memory arrays.
+            unwphase = read_raster(d / "unwphase.tif")
+            conncomp = read_raster(d / "conncomp.tif")
 
         return unwphase, conncomp
