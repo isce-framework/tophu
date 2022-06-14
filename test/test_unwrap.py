@@ -31,7 +31,7 @@ class TestUnwrapCallback:
 
 class TestSnaphuUnwrap:
     def test_interface(self):
-        # Check that `SnaphuUnwrapper` satisfies the interface requirements of
+        # Check that `SnaphuUnwrap` satisfies the interface requirements of
         # `UnwrapCallback`.
         assert issubclass(tophu.SnaphuUnwrap, tophu.UnwrapCallback)
 
@@ -127,7 +127,7 @@ class TestSnaphuUnwrap:
 
 class TestICUUnwrap:
     def test_interface(self):
-        # Check that `ICUUnwrapper` satisfies the interface requirements of
+        # Check that `ICUUnwrap` satisfies the interface requirements of
         # `UnwrapCallback`.
         assert issubclass(tophu.ICUUnwrap, tophu.UnwrapCallback)
 
@@ -206,6 +206,91 @@ class TestICUUnwrap:
 
         # Create callback function to run ICU.
         unwrap = tophu.ICUUnwrap(min_coherence=0.5)
+
+        # Unwrap.
+        unw, conncomp = unwrap(igram, corrcoef, nlooks)
+
+        # Check the number of unique nonzero connected component labels.
+        unique_labels = set(np.unique(conncomp))
+        unique_nonzero_labels = unique_labels - {0}
+        assert len(unique_nonzero_labels) == 2
+
+        # Within each masked region, most pixels should be assigned to a single common
+        # connected component with nonzero label (some pixels may be mislabeled due to
+        # noise). The test checks the fraction of pixels within each masked region whose
+        # label matches the modal (most common) label from that region. It also checks
+        # that the modal label is nonzero.
+        for mask in [mask1, mask2]:
+            modal_label, _ = mode(conncomp[mask], axis=None)
+            assert frac_nonzero(conncomp[mask] == modal_label) > 0.95
+            assert modal_label != 0
+
+        # Check that pixels not belonging to any masked region are labeled zero.
+        assert np.all(conncomp[~(mask1 | mask2)] == 0)
+
+        # Check the unwrapped phase within each connected component. The unwrapped phase
+        # and absolute (true) phase should differ only by a constant integer multiple of
+        # 2pi. The test metric is the fraction of correctly unwrapped pixels, i.e.
+        # pixels where the unwrapped phase and absolute phase agree up to some constant
+        # number of cycles.
+        phasediff = phase - unw
+        for label in unique_nonzero_labels:
+            mask = conncomp == label
+            off = round_to_nearest(np.mean(phasediff[mask]), 2.0 * np.pi)
+            good_pixels = np.isclose(unw[mask] + off, phase[mask], rtol=1e-5, atol=1e-5)
+            assert frac_nonzero(good_pixels) > 0.95
+
+
+class TestPhassUnwrap:
+    def test_interface(self):
+        # Check that `PhassUnwrap` satisfies the interface requirements of
+        # `UnwrapCallback`.
+        assert issubclass(tophu.PhassUnwrap, tophu.UnwrapCallback)
+
+    def test_bad_coherence_thresh(self):
+        errmsg = "coherence threshold must be between 0 and 1"
+        with pytest.raises(ValueError, match=errmsg):
+            tophu.PhassUnwrap(coherence_thresh=-0.1)
+        with pytest.raises(ValueError, match=errmsg):
+            tophu.PhassUnwrap(coherence_thresh=1.1)
+
+    def test_bad_good_coherence(self):
+        errmsg = "good coherence must be between 0 and 1"
+        with pytest.raises(ValueError, match=errmsg):
+            tophu.PhassUnwrap(good_coherence=-0.1)
+        with pytest.raises(ValueError, match=errmsg):
+            tophu.PhassUnwrap(good_coherence=1.1)
+
+    def test_unwrap(self):
+        # Multilooked interferogram dimensions.
+        length, width = 1024, 256
+
+        # Simulate 2-D absolute phase field with a linear diagonal phase gradient, in
+        # radians.
+        x = np.linspace(0.0, 50.0, width, dtype=np.float32)
+        y = np.linspace(0.0, 100.0, length, dtype=np.float32)
+        phase = x + y[:, None]
+
+        # Create masks of connected components.
+        mask1 = np.zeros((length, width), dtype=np.bool_)
+        mask1[50:450, 25:-25] = True
+        mask2 = np.zeros((length, width), dtype=np.bool_)
+        mask2[600:, :] = True
+
+        # Simulate correlation coefficient data with islands of high coherence
+        # surrounded by low-coherence pixels.
+        corrcoef = np.full((length, width), fill_value=0.4, dtype=np.float32)
+        corrcoef[mask1 | mask2] = 0.9
+
+        # Add phase noise.
+        nlooks = 25.0
+        phase += simulate_phase_noise(corrcoef, nlooks, seed=1234)
+
+        # Create unit-magnitude interferogram.
+        igram = np.exp(1j * phase)
+
+        # Create callback function to run ICU.
+        unwrap = tophu.PhassUnwrap(coherence_thresh=0.5)
 
         # Unwrap.
         unw, conncomp = unwrap(igram, corrcoef, nlooks)

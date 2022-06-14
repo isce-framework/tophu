@@ -13,6 +13,7 @@ from numpy.typing import DTypeLike, NDArray
 
 __all__ = [
     "ICUUnwrap",
+    "PhassUnwrap",
     "SnaphuUnwrap",
     "UnwrapCallback",
 ]
@@ -373,6 +374,108 @@ class ICUUnwrap(UnwrapCallback):
 
             # Run ICU.
             icu.unwrap(unwphase_raster, conncomp_raster, igram_raster, corrcoef_raster)
+
+            # Ensure changes to output rasters are flushed to disk and close the files.
+            del unwphase_raster
+            del conncomp_raster
+
+            # Read output rasters into in-memory arrays.
+            unwphase = read_raster(d / "unwphase.tif")
+            conncomp = read_raster(d / "conncomp.tif")
+
+        return unwphase, conncomp
+
+
+@dataclasses.dataclass
+class PhassUnwrap(UnwrapCallback):
+    """Callback functor for unwrapping using PHASS.
+
+    Attributes
+    ----------
+    coherence_thresh : float, optional
+        ??? (default: 0.2)
+    good_coherence : float, optional
+        ??? (default: 0.7)
+    min_region_size : int, optional
+        ??? (default: 200)
+    """
+
+    coherence_thresh: float = 0.2
+    good_coherence: float = 0.7
+    min_region_size: int = 200
+
+    def __post_init__(self):
+        if not (0.0 <= self.coherence_thresh <= 1.0):
+            raise ValueError("coherence threshold must be between 0 and 1")
+        if not (0.0 <= self.good_coherence <= 1.0):
+            raise ValueError("good coherence must be between 0 and 1")
+        if self.min_region_size <= 0:
+            raise ValueError("minimum region size must be > 0")
+
+    def __call__(
+        self,
+        igram: NDArray[np.complexfloating],
+        corrcoef: NDArray[np.floating],
+        nlooks: float,
+    ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
+        """Perform two-dimensional phase unwrapping using PHASS.
+
+        Parameters
+        ----------
+        igram : numpy.ndarray
+            Input interferogram.
+        corrcoef : numpy.ndarray
+            Sample correlation coefficient, normalized to the interval [0, 1], with the
+            same shape as the input interferogram.
+        nlooks : float
+            Effective number of spatial looks used to form the input correlation data.
+
+        Returns
+        -------
+        unwphase : numpy.ndarray
+            Unwrapped phase, in radians.
+        conncomp : numpy.ndarray
+            Connected component labels, with the same shape as the unwrapped phase.
+        """
+        # Configure ICU to unwrap the interferogram as a single tile (no bootstrapping).
+        phass = isce3.unwrap.Phass(
+            correlation_threshold=self.coherence_thresh,
+            good_correlation=self.good_coherence,
+            min_pixels_region=self.min_region_size,
+        )
+
+        # Get wrapped phase.
+        wphase = np.angle(igram)
+
+        # Create a temporary scratch directory to store intermediate rasters.
+        with TemporaryDirectory() as tmpdir:
+            d = Path(tmpdir)
+
+            # Convert input arrays into rasters.
+            wphase_raster = to_geotiff(d / "wphase.tif", wphase)
+            corrcoef_raster = to_geotiff(d / "corrcoef.tif", corrcoef)
+
+            # Create zero-filled rasters to store output data.
+            unwphase_raster = create_geotiff(
+                d / "unwphase.tif",
+                width=igram.shape[1],
+                length=igram.shape[0],
+                dtype=np.float32,
+            )
+            conncomp_raster = create_geotiff(
+                d / "conncomp.tif",
+                width=igram.shape[1],
+                length=igram.shape[0],
+                dtype=np.uint32,
+            )
+
+            # Run PHASS.
+            phass.unwrap(
+                wphase_raster,
+                corrcoef_raster,
+                unwphase_raster,
+                conncomp_raster,
+            )
 
             # Ensure changes to output rasters are flushed to disk and close the files.
             del unwphase_raster
