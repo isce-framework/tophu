@@ -2,7 +2,6 @@ import dataclasses
 import warnings
 from os import PathLike
 from pathlib import Path
-from rasterio.errors import NotGeoreferencedWarning
 from tempfile import TemporaryDirectory
 from typing import Literal, Optional, Protocol, Tuple, runtime_checkable
 
@@ -10,6 +9,7 @@ import isce3
 import numpy as np
 import rasterio
 from numpy.typing import DTypeLike, NDArray
+from rasterio.errors import NotGeoreferencedWarning
 
 __all__ = [
     "ICUUnwrap",
