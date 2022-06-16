@@ -16,6 +16,7 @@ ignore_missing_imports = true
 
 [tool.pydocstyle]
 ignore = "D100,D104,D105,D203,D204,D213,D413"
+ignore-decorators="property"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
