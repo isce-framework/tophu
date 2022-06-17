@@ -69,8 +69,8 @@ def bandpass_equiripple_filter(
 
     Form a linear-phase finite impulse response (FIR) discrete-time digital filter wth
     desired passband, stopband, and attenuation characteristics using the
-    Parks-McClellan algorithm [1]_. The algorithm produces a filter is optimal in the
-    sense that it minimizes the maximum weighted deviation from the ideal frequency
+    Parks-McClellan algorithm [1]_. The algorithm produces a filter that is optimal in
+    the sense that it minimizes the maximum weighted deviation from the ideal frequency
     response in the passband and stopband.
 
     The resulting filter has equiripple frequency response in both the passband and
