@@ -10,16 +10,21 @@ copyright = f"{datetime.date.today().year}, {author}"
 
 # General configuration.
 extensions = [
+    "sphinxcontrib.bibtex",
     "sphinx_copybutton",
     "sphinx_rtd_theme",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
+    "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
 ]
 
 # Options for HTML output.
 html_theme = "sphinx_rtd_theme"
 html_title = "tophu"
+
+# Extension configuration options: `sphinxcontrib-bibtex`.
+bibtex_bibfiles = ["references.bib"]
 
 # Extension configuration options: `sphinx.ext.autosummary`.
 autosummary_generate = True

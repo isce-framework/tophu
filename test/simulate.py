@@ -15,15 +15,16 @@ def simulate_phase_noise(
     *,
     seed: Optional[int] = None,
 ) -> NDArray:
-    """Simulate multilooked interferogram phase noise samples.
+    r"""Simulate multilooked interferogram phase noise samples.
 
     Generate pseudo-random noise samples that approximately match the expected
     distribution of multilooked interferogram phase.
 
     The resulting samples are zero-mean Gaussian distributed, with variance equal to the
     Cramer-Rao bound of the Maximum Likelihood Estimator for the interferometric
-    phase [1]_. This simple approximation is most accurate for high coherence and large
-    number of looks. The true phase difference distribution is more complicated [2]_.
+    phase\ :footcite:p:`rodriguez:1992`. This simple approximation is most accurate for
+    high coherence and large number of looks. The true phase difference distribution is
+    more complicated\ :footcite:p:`lee:1994`.
 
     Parameters
     ----------
@@ -42,12 +43,7 @@ def simulate_phase_noise(
 
     References
     ----------
-    .. [1] E. Rodriguez, and J. M. Martin, "Theory and design of interferometric
-        synthetic aperture radars," IEE Proceedings-F, vol. 139, no. 2, pp. 147-159,
-        April 1992.
-    .. [2] J. S. Lee, K. W. Hoppel, S. A. Mango, and A. R. Miller, "Intensity and phase
-        statistics of multilook polarimetric and interferometric SAR imagery," IEEE
-        Trans. Geosci. Remote Sens. 32, 1017-1028 (1994).
+    .. footbibliography::
     """
     corrcoef = np.asanyarray(corrcoef)
 
@@ -70,9 +66,10 @@ def simulate_terrain(
     smoothness: float = 0.8,
     seed: Optional[int] = None,
 ) -> NDArray:
-    """Simulate topography using the Diamond-Square algorithm.
+    r"""Simulate topography using the Diamond-Square algorithm.
 
-    Generate a 2-D fractal height map using the Diamond-Square algorithm [1]_.
+    Generate a 2-D fractal height map using the Diamond-Square algorithm\
+    :footcite:p:`miller:1986`.
 
     Parameters
     ----------
@@ -94,8 +91,7 @@ def simulate_terrain(
 
     References
     ----------
-    .. [1] Miller, Gavin S. P., "The definition and rendering of terrain maps". ACM
-        SIGGRAPH Computer Graphics. 20(4): 39-48.
+    .. footbibliography::
     """
     # Validate inputs.
     if (length <= 0) or (width <= 0):

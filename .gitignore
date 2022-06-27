@@ -4,5 +4,6 @@
 .mpypy_cache/
 .pytest_cache/
 __pycache__/
+betterbib_cache.sqlite
 build/
 coverage.xml

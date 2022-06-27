@@ -58,9 +58,9 @@ class UnwrapCallback(Protocol):
 
 @dataclasses.dataclass
 class SnaphuUnwrap(UnwrapCallback):
-    """Callback functor for unwrapping using SNAPHU.
+    r"""Callback functor for unwrapping using SNAPHU.
 
-    Performs unwrapping using the SNAPHU algorithm [1]_.
+    Performs unwrapping using the SNAPHU algorithm\ :footcite:p:`chen:2001`.
 
     Attributes
     ----------
@@ -73,9 +73,7 @@ class SnaphuUnwrap(UnwrapCallback):
 
     References
     ----------
-    .. [1] C. W. Chen and H. A. Zebker, "Two-dimensional phase unwrapping with use of
-        statistical models for cost functions in nonlinear optimization," Journal of the
-        Optical Society of America A, vol. 18, pp. 338-351 (2001).
+    .. footbibliography::
     """
 
     cost: Literal["topo", "defo", "smooth", "p-norm"] = "smooth"

@@ -11,7 +11,8 @@ def equiripple_filter_order_kaiser(ptol: float, stol: float, width: float) -> in
     r"""Estimate the order of an optimal equiripple FIR filter using Kaiser's formula.
 
     Predicts the order of a finite impulse response (FIR) digital filter obtained from
-    the optimal equiripple approximation method using Kaiser's formula [1]_.
+    the optimal equiripple approximation method using Kaiser's formula\
+    :footcite:p:`kaiser:1974`.
 
     Evaluates
 
@@ -42,9 +43,7 @@ def equiripple_filter_order_kaiser(ptol: float, stol: float, width: float) -> in
 
     References
     ----------
-    .. [1] Kaiser, James F. "Nonrecursive Digital Filter Design Using the I0-Sinh Window
-        Function." Proceedings of the 1974 IEEE International Symposium on Circuits and
-        Systems. 1974, pp. 20-23.
+    .. footbibliography::
     """
     assert ptol > 0.0
     assert stol > 0.0
@@ -65,13 +64,13 @@ def bandpass_equiripple_filter(
     maxiter: int = 25,
     grid_density: int = 16,
 ) -> NDArray:
-    """Design a bandpass FIR digital filter using the Parks-McClellan algorithm.
+    r"""Design a bandpass FIR digital filter using the Parks-McClellan algorithm.
 
     Form a linear-phase finite impulse response (FIR) discrete-time digital filter wth
     desired passband, stopband, and attenuation characteristics using the
-    Parks-McClellan algorithm [1]_. The algorithm produces a filter that is optimal in
-    the sense that it minimizes the maximum weighted deviation from the ideal frequency
-    response in the passband and stopband.
+    Parks-McClellan algorithm\ :footcite:p:`mcclellan:1973`. The algorithm produces a
+    filter that is optimal in the sense that it minimizes the maximum weighted deviation
+    from the ideal frequency response in the passband and stopband.
 
     The resulting filter has equiripple frequency response in both the passband and
     stopband.
@@ -108,9 +107,7 @@ def bandpass_equiripple_filter(
 
     References
     ----------
-    .. [1] J. H. McClellan and T. W. Parks, "A unified approach to the design of optimum
-        FIR linear phase digital filters", IEEE Trans. Circuit Theory, vol. CT-20, pp.
-        697-701, 1973.
+    .. footbibliography::
     """
     if (bandwidth <= 0.0) or (bandwidth >= samplerate):
         raise ValueError(f"passband width must be > 0 and < {samplerate}")
