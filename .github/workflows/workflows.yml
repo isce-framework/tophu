@@ -35,13 +35,16 @@ jobs:
       - name: Setup environment
         uses: mamba-org/provision-with-micromamba@main
         with:
+          environment-file: requirements.txt
+          environment-name: tophu
           extra-specs: ${{ matrix.deps.spec }}
+          channels: conda-forge
       - name: Install
         run: |
           pip install --no-deps .
       - name: Test
         run: |
-          micromamba install -f test/environment.yml
+          micromamba install -f test/requirements.txt -c conda-forge
           pytest --cov-report=xml
       - name: Coverage report
         uses: codecov/codecov-action@v2

@@ -1,0 +1,5 @@
+isce3>=0.6
+numpy>=1.21
+python>=3.8
+rasterio>=1.2
+scipy>=1.5

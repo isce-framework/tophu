@@ -1,8 +1,0 @@
-name: tophu
-channels:
-  - conda-forge
-  - nodefaults
-dependencies:
-  - sphinx
-  - sphinx-copybutton
-  - sphinx_rtd_theme

@@ -14,7 +14,7 @@ repos:
       - id: debug-statements
       - id: end-of-file-fixer
       - id: file-contents-sorter
-        files: .gitignore
+        files: (\.gitignore|requirements.txt)$
       - id: mixed-line-ending
       - id: trailing-whitespace
 
