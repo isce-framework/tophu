@@ -39,6 +39,11 @@ def normalize_axis_tuple(axes: IndexOrIndicesOrNone, ndim: int) -> Tuple[int, ..
         return np.core.numeric.normalize_axis_tuple(axes, ndim)  # type: ignore
 
 
+def iseven(n: int) -> bool:
+    """Check if the input is even-valued."""
+    return n % 2 == 0
+
+
 def upsample_fft(
     data: NDArray,
     ratio: Tuple[int, ...],
@@ -120,13 +125,13 @@ def upsample_fft(
     # Nyquist bin in the padded array.
     for axis in axes:
         n = data.shape[axis]
-        if n % 2 == 0:
+        if iseven(n):
             s = [slice(None)] * data.ndim
             s[axis] = n // 2  # type: ignore
             Y[tuple(s)] *= 0.5
     for axis in axes:
         n = data.shape[axis]
-        if n % 2 == 0:
+        if iseven(n):
             s1 = [slice(None)] * data.ndim
             s1[axis] = n // 2  # type: ignore
             s2 = [slice(None)] * data.ndim
