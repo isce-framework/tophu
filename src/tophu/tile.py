@@ -70,7 +70,7 @@ def round_up_to_next_multiple(n: ArrayLike, base: ArrayLike) -> NDArray:
 
 
 class TiledPartition:
-    """A partition of an N-dimensional array into tiles.
+    """A partitioning of an N-dimensional array into tiles.
 
     A `TiledPartition` object subdivides an array of given shape into one or more
     roughly equally sized, possibly overlapping, tiles. Each tile corresponds to a block
@@ -199,7 +199,7 @@ class TiledPartition:
 
         Arguments
         ---------
-        index : tuple of int
+        index : int or tuple of int
             Index of the tile.
 
         Returns

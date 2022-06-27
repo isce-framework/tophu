@@ -21,9 +21,9 @@ def simulate_phase_noise(
     distribution of multilooked interferogram phase.
 
     The resulting samples are zero-mean Gaussian distributed, with variance equal to the
-    Cramer-Rao bound of the Maximum Likelihood Estimator for the interferometric phase
-    [1]_. This simple approximation is most accurate for high coherence and large number
-    of looks. The true phase difference distribution is more complicated [2]_.
+    Cramer-Rao bound of the Maximum Likelihood Estimator for the interferometric
+    phase [1]_. This simple approximation is most accurate for high coherence and large
+    number of looks. The true phase difference distribution is more complicated [2]_.
 
     Parameters
     ----------
@@ -70,7 +70,9 @@ def simulate_terrain(
     smoothness: float = 0.8,
     seed: Optional[int] = None,
 ) -> NDArray:
-    """Simulate topography using the Diamond-Square algorithm [1]_.
+    """Simulate topography using the Diamond-Square algorithm.
+
+    Generate a 2-D fractal height map using the Diamond-Square algorithm [1]_.
 
     Parameters
     ----------

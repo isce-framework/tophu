@@ -58,7 +58,9 @@ class UnwrapCallback(Protocol):
 
 @dataclasses.dataclass
 class SnaphuUnwrap(UnwrapCallback):
-    """Callback functor for unwrapping using SNAPHU [1]_.
+    """Callback functor for unwrapping using SNAPHU.
+
+    Performs unwrapping using the SNAPHU algorithm [1]_.
 
     Attributes
     ----------
