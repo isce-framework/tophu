@@ -10,3 +10,4 @@ interferometric synthetic aperture radar (InSAR).
 
    installation
    reference
+   changelog

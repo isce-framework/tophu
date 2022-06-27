@@ -10,6 +10,7 @@ copyright = f"{datetime.date.today().year}, {author}"
 
 # General configuration.
 extensions = [
+    "myst_parser",
     "sphinxcontrib.bibtex",
     "sphinx_copybutton",
     "sphinx_rtd_theme",
