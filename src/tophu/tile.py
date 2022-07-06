@@ -81,17 +81,6 @@ class TiledPartition:
     can be used to access the corresponding block of data from the partitioned array.
     Individual tiles can be accessed using the subscripting operator. In addition,
     `TiledPartition` objects support iterating over the set of tiles in arbitrary order.
-
-    Attributes
-    ----------
-    ntiles : tuple of int
-        Number of tiles along each array axis.
-    tiledims : tuple of int
-        Shape of a typical tile. The last tile along each axis may be smaller.
-    strides : tuple of int
-        Step size, in samples, between the start of adjacent tiles along each axis.
-    overlap : tuple of int
-        Overlap, in samples, between adjacent tiles along each axis.
     """
 
     def __init__(
@@ -176,18 +165,26 @@ class TiledPartition:
 
     @property
     def ntiles(self) -> Tuple[int, ...]:
+        """tuple of int : Number of tiles along each array axis."""
         return self._ntiles
 
     @property
     def tiledims(self) -> Tuple[int, ...]:
+        """tuple of int : Shape of a typical tile. The last tile along each axis may be
+        smaller.
+        """
         return tuple(self._tiledims)
 
     @property
     def strides(self) -> Tuple[int, ...]:
+        """tuple of int : Step size between the start of adjacent tiles along each
+        axis.
+        """
         return tuple(self._strides)
 
     @property
     def overlap(self) -> Tuple[int, ...]:
+        """tuple of int : Overlap between adjacent tiles along each axis."""
         return tuple(self._tiledims - self._strides)
 
     def __getitem__(self, index: IntOrInts) -> NDSlice:

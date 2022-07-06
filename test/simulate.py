@@ -40,10 +40,6 @@ def simulate_phase_noise(
     -------
     phi : array_like
         Phase noise samples.
-
-    References
-    ----------
-    .. footbibliography::
     """
     corrcoef = np.asanyarray(corrcoef)
 
@@ -88,10 +84,6 @@ def simulate_terrain(
     -------
     z : numpy.ndarray
         Height map.
-
-    References
-    ----------
-    .. footbibliography::
     """
     # Validate inputs.
     if (length <= 0) or (width <= 0):

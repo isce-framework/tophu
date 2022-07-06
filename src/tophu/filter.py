@@ -40,10 +40,6 @@ def equiripple_filter_order_kaiser(ptol: float, stol: float, width: float) -> in
     -------
     order : int
         Filter order.
-
-    References
-    ----------
-    .. footbibliography::
     """
     assert ptol > 0.0
     assert stol > 0.0
@@ -104,10 +100,6 @@ def bandpass_equiripple_filter(
     -------
     coeffs : numpy.ndarray
         Filter coefficients.
-
-    References
-    ----------
-    .. footbibliography::
     """
     if (bandwidth <= 0.0) or (bandwidth >= samplerate):
         raise ValueError(f"passband width must be > 0 and < {samplerate}")

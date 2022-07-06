@@ -7,3 +7,4 @@ __pycache__/
 betterbib_cache.sqlite
 build/
 coverage.xml
+docs/source/api/

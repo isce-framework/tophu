@@ -61,30 +61,44 @@ class SnaphuUnwrap(UnwrapCallback):
     r"""Callback functor for unwrapping using SNAPHU.
 
     Performs unwrapping using the SNAPHU algorithm\ :footcite:p:`chen:2001`.
-
-    Attributes
-    ----------
-    cost : {'topo', 'defo', 'smooth', 'p-norm'}
-        Statistical cost mode.
-    cost_params : isce3.unwrap.snaphu.CostParams or None
-        Configuration parameters for the specified cost mode.
-    init_method : {'mst', 'mcf'}
-        Initialization method.
-
-    References
-    ----------
-    .. footbibliography::
     """
 
-    cost: Literal["topo", "defo", "smooth", "p-norm"] = "smooth"
-    cost_params: Optional[isce3.unwrap.snaphu.CostParams] = None
-    init_method: Literal["mst", "mcf"] = "mcf"
+    cost: str
+    """str : Statistical cost mode."""
 
-    def __post_init__(self):
-        if self.cost not in {"topo", "defo", "smooth", "p-norm"}:
-            raise ValueError(f"unexpected cost mode '{self.cost}'")
-        if self.init_method not in {"mst", "mcf"}:
-            raise ValueError(f"unexpected initialization method '{self.init_method}'")
+    cost_params: Optional[isce3.unwrap.snaphu.CostParams]
+    """isce3.unwrap.snaphu.CostParams or None : Configuration parameters for the
+    specified cost mode.
+    """
+
+    init_method: str
+    """str : Initialization method."""
+
+    def __init__(
+        self,
+        cost: Literal["topo", "defo", "smooth", "p-norm"] = "smooth",
+        cost_params: Optional[isce3.unwrap.snaphu.CostParams] = None,
+        init_method: Literal["mst", "mcf"] = "mcf",
+    ):
+        """Construct a new `SnaphuUnwrap` object.
+
+        Parameters
+        ----------
+        cost : {'topo', 'defo', 'smooth', 'p-norm'}, optional
+            Statistical cost mode. (default: 'smooth')
+        cost_params : isce3.unwrap.snaphu.CostParams or None, optional
+            Configuration parameters for the specified cost mode. (default: None)
+        init_method : {'mst', 'mcf'}, optional
+            Initialization method. (default: 'mcf')
+        """
+        if cost not in {"topo", "defo", "smooth", "p-norm"}:
+            raise ValueError(f"unexpected cost mode '{cost}'")
+        if init_method not in {"mst", "mcf"}:
+            raise ValueError(f"unexpected initialization method '{init_method}'")
+
+        self.cost = cost
+        self.cost_params = cost_params
+        self.init_method = init_method
 
     def __call__(
         self,
@@ -92,25 +106,7 @@ class SnaphuUnwrap(UnwrapCallback):
         corrcoef: NDArray[np.floating],
         nlooks: float,
     ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
-        """Perform two-dimensional phase unwrapping using SNAPHU.
 
-        Parameters
-        ----------
-        igram : numpy.ndarray
-            Input interferogram.
-        corrcoef : numpy.ndarray
-            Sample correlation coefficient, normalized to the interval [0, 1], with the
-            same shape as the input interferogram.
-        nlooks : float
-            Effective number of spatial looks used to form the input correlation data.
-
-        Returns
-        -------
-        unwphase : numpy.ndarray
-            Unwrapped phase, in radians.
-        conncomp : numpy.ndarray
-            Connected component labels, with the same shape as the unwrapped phase.
-        """
         # Convert input arrays to GDAL rasters with the expected datatypes.
         igram_data = np.asanyarray(igram, dtype=np.complex64)
         igram = isce3.io.gdal.Raster(igram_data)
@@ -245,70 +241,139 @@ def read_raster(path: PathLike, band: int = 1) -> NDArray:
 
 @dataclasses.dataclass
 class ICUUnwrap(UnwrapCallback):
-    """Callback functor for unwrapping using ICU.
+    """Callback functor for unwrapping using ICU."""
 
-    Attributes
-    ----------
-    min_coherence : float, optional
-        Minimum coherence of valid data. Pixels with lower coherence are masked out.
-        (default: 0.1)
-    ntrees : int, optional
-        Number of randomized tree realizations to generate. (default: 7)
-    max_branch_length : int, optional
-        Maximum length of a branch cut between residues/neutrons. (default: 64)
-    use_phasegrad_neutrons : bool, optional
-        Whether to use phase gradient neutrons. (default: False)
-    use_intensity_neutrons : bool, optional
-        Whether ot use intensity neutrons, (default: False)
-    phasegrad_window_size : int, optional
-        Window size for estimating phase gradients. This parameter is ignored if
-        `use_phasegrad_neutrons` was false. (default: 5)
-    neutron_phasegrad_thresh : float, optional
-        Absolute phase gradient threshold for detecting phase gradient neutrons, in
-        radians per sample. This parameter is ignored if `use_phasegrad_neutrons` was
-        false. (default: 3)
-    neutron_intensity_thresh : float, optional
-        Intensity variation threshold for detecting intensity neutrons, in standard
-        deviations from the mean (based on local image statistics). This parameter is
-        ignored if `use_intensity_neutrons` was false. (default: 8)
-    neutron_coherence_thresh : float, optional
-        Correlation coefficient threshold for detecting intensity neutrons. This
-        parameter is ignored if `use_intensity_neutrons` was false. (default: 0.8)
-    min_conncomp_frac_area : float, optional
-        Minimum connected component size as a fraction of the total size of the
-        interferogram tile. (default: 1/320)
+    min_coherence: float
+    """float : Minimum coherence of valid data.
+
+    Pixels with lower coherence are masked out.
     """
 
-    min_coherence: float = 0.1
-    ntrees: int = 7
-    max_branch_length: int = 64
-    use_phasegrad_neutrons: bool = False
-    use_intensity_neutrons: bool = False
-    phasegrad_window_size: int = 5
-    neutron_phasegrad_thresh: float = 3.0
-    neutron_intensity_thresh: float = 8.0
-    neutron_coherence_thresh: float = 0.8
-    min_conncomp_area_frac: float = 1.0 / 320.0
+    ntrees: int
+    """int : Number of randomized tree realizations to generate."""
 
-    def __post_init__(self):
-        if not (0.0 <= self.min_coherence <= 1.0):
+    max_branch_length: int
+    """int : Maximum branch cut length, in pixels."""
+
+    use_phasegrad_neutrons: bool
+    """bool : Whether to use phase gradient neutrons."""
+
+    use_intensity_neutrons: bool
+    """bool : Whether to use intensity neutrons."""
+
+    phasegrad_window_size: int
+    """int : Window size for estimating phase gradients.
+
+    This parameter is ignored if `use_phasegrad_neutrons` is false.
+    """
+
+    neutron_phasegrad_thresh: float
+    """float : Neutron absolute phase gradient threshold.
+
+    Absolute phase gradient threshold for detecting phase gradient neutrons, in radians
+    per sample.
+
+    This parameter is ignored if `use_phasegrad_neutrons` is false.
+    """
+
+    neutron_intensity_thresh: float
+    """float : Neutron intensity standard deviation threshold.
+
+    Intensity variation threshold for detecting intensity neutrons, in standard
+    deviations from the mean (based on local image statistics).
+
+    This parameter is ignored if `use_intensity_neutrons` is false.
+    """
+
+    neutron_coherence_thresh: float
+    """float : Coherence threshold for detecting intensity neutrons.
+
+    This parameter is ignored if `use_intensity_neutrons` is false.
+    """
+
+    min_conncomp_area_frac: float
+    """float : Minimum connected component size fraction.
+
+    Minimum connected component area as a fraction of the total size of the
+    interferogram tile.
+    """
+
+    def __init__(
+        self,
+        min_coherence: float = 0.1,
+        ntrees: int = 7,
+        max_branch_length: int = 64,
+        use_phasegrad_neutrons: bool = False,
+        use_intensity_neutrons: bool = False,
+        phasegrad_window_size: int = 5,
+        neutron_phasegrad_thresh: float = 3.0,
+        neutron_intensity_thresh: float = 8.0,
+        neutron_coherence_thresh: float = 0.8,
+        min_conncomp_area_frac: float = 1.0 / 320.0,
+    ):
+        """Construct a new `ICUUnwrap` object.
+
+        Parameters
+        ----------
+        min_coherence : float, optional
+            Minimum coherence of valid data. Pixels with lower coherence are masked out.
+            (default: 0.1)
+        ntrees : int, optional
+            Number of randomized tree realizations to generate. (default: 7)
+        max_branch_length : int, optional
+            Maximum length of a branch cut between residues/neutrons, in pixels.
+            (default: 64)
+        use_phasegrad_neutrons : bool, optional
+            Whether to use phase gradient neutrons. (default: False)
+        use_intensity_neutrons : bool, optional
+            Whether to use intensity neutrons. (default: False)
+        phasegrad_window_size : int, optional
+            Window size for estimating phase gradients. This parameter is ignored if
+            `use_phasegrad_neutrons` was false. (default: 5)
+        neutron_phasegrad_thresh : float, optional
+            Absolute phase gradient threshold for detecting phase gradient neutrons, in
+            radians per sample. This parameter is ignored if `use_phasegrad_neutrons`
+            was false. (default: 3)
+        neutron_intensity_thresh : float, optional
+            Intensity variation threshold for detecting intensity neutrons, in standard
+            deviations from the mean (based on local image statistics). This parameter
+            is ignored if `use_intensity_neutrons` was false. (default: 8)
+        neutron_coherence_thresh : float, optional
+            Correlation coefficient threshold for detecting intensity neutrons. This
+            parameter is ignored if `use_intensity_neutrons` was false. (default: 0.8)
+        min_conncomp_area_frac : float, optional
+            Minimum connected component size as a fraction of the total size of the
+            interferogram tile. (default: 1/320)
+        """
+        if not (0.0 <= min_coherence <= 1.0):
             raise ValueError("minimum coherence must be between 0 and 1")
-        if self.ntrees < 1:
+        if ntrees < 1:
             raise ValueError("number of tree realizations must be >= 1")
-        if self.max_branch_length < 1:
+        if max_branch_length < 1:
             raise ValueError("max branch length must be >= 1")
-        if self.phasegrad_window_size < 1:
+        if phasegrad_window_size < 1:
             raise ValueError("phase gradient window size must be >= 1")
-        if not isodd(self.phasegrad_window_size):
+        if not isodd(phasegrad_window_size):
             raise ValueError("phase gradient window size must be odd-valued")
-        if self.neutron_phasegrad_thresh <= 0.0:
+        if neutron_phasegrad_thresh <= 0.0:
             raise ValueError("neutron phase gradient threshold must be > 0")
-        if self.neutron_intensity_thresh <= 0.0:
+        if neutron_intensity_thresh <= 0.0:
             raise ValueError("neutron intensity variation threshold must be > 0")
-        if not (0.0 <= self.neutron_coherence_thresh <= 1.0):
+        if not (0.0 <= neutron_coherence_thresh <= 1.0):
             raise ValueError("neutron coherence threshold must be between 0 and 1")
-        if self.min_conncomp_area_frac <= 0.0:
+        if min_conncomp_area_frac <= 0.0:
             raise ValueError("minimum connected component size must be > 0")
+
+        self.min_coherence = min_coherence
+        self.ntrees = ntrees
+        self.max_branch_length = max_branch_length
+        self.use_phasegrad_neutrons = use_phasegrad_neutrons
+        self.use_intensity_neutrons = use_intensity_neutrons
+        self.phasegrad_window_size = phasegrad_window_size
+        self.neutron_phasegrad_thresh = neutron_phasegrad_thresh
+        self.neutron_intensity_thresh = neutron_intensity_thresh
+        self.neutron_coherence_thresh = neutron_coherence_thresh
+        self.min_conncomp_area_frac = min_conncomp_area_frac
 
     def __call__(
         self,
@@ -316,25 +381,6 @@ class ICUUnwrap(UnwrapCallback):
         corrcoef: NDArray[np.floating],
         nlooks: float,
     ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
-        """Perform two-dimensional phase unwrapping using ICU.
-
-        Parameters
-        ----------
-        igram : numpy.ndarray
-            Input interferogram.
-        corrcoef : numpy.ndarray
-            Sample correlation coefficient, normalized to the interval [0, 1], with the
-            same shape as the input interferogram.
-        nlooks : float
-            Effective number of spatial looks used to form the input correlation data.
-
-        Returns
-        -------
-        unwphase : numpy.ndarray
-            Unwrapped phase, in radians.
-        conncomp : numpy.ndarray
-            Connected component labels, with the same shape as the unwrapped phase.
-        """
         # Configure ICU to unwrap the interferogram as a single tile (no bootstrapping).
         icu = isce3.unwrap.ICU(
             buffer_lines=len(igram),
@@ -388,29 +434,44 @@ class ICUUnwrap(UnwrapCallback):
 
 @dataclasses.dataclass
 class PhassUnwrap(UnwrapCallback):
-    """Callback functor for unwrapping using PHASS.
+    """Callback functor for unwrapping using PHASS."""
 
-    Attributes
-    ----------
-    coherence_thresh : float, optional
-        ??? (default: 0.2)
-    good_coherence : float, optional
-        ??? (default: 0.7)
-    min_region_size : int, optional
-        ??? (default: 200)
-    """
+    coherence_thresh: float
+    """float : ???"""
 
-    coherence_thresh: float = 0.2
-    good_coherence: float = 0.7
-    min_region_size: int = 200
+    good_coherence: float
+    """float : ???"""
 
-    def __post_init__(self):
-        if not (0.0 <= self.coherence_thresh <= 1.0):
+    min_region_size: int
+    """float : ???"""
+
+    def __init__(
+        self,
+        coherence_thresh: float = 0.2,
+        good_coherence: float = 0.7,
+        min_region_size: int = 200,
+    ):
+        """Construct a new `PhassUnwrap` object.
+
+        Parameters
+        ----------
+        coherence_thresh : float, optional
+            ??? (default: 0.2)
+        good_coherence : float, optional
+            ??? (default: 0.7)
+        min_region_size : int, optional
+            ??? (default: 200)
+        """
+        if not (0.0 <= coherence_thresh <= 1.0):
             raise ValueError("coherence threshold must be between 0 and 1")
-        if not (0.0 <= self.good_coherence <= 1.0):
+        if not (0.0 <= good_coherence <= 1.0):
             raise ValueError("good coherence must be between 0 and 1")
-        if self.min_region_size <= 0:
+        if min_region_size <= 0:
             raise ValueError("minimum region size must be > 0")
+
+        self.coherence_thresh = coherence_thresh
+        self.good_coherence = good_coherence
+        self.min_region_size = min_region_size
 
     def __call__(
         self,
@@ -418,25 +479,6 @@ class PhassUnwrap(UnwrapCallback):
         corrcoef: NDArray[np.floating],
         nlooks: float,
     ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
-        """Perform two-dimensional phase unwrapping using PHASS.
-
-        Parameters
-        ----------
-        igram : numpy.ndarray
-            Input interferogram.
-        corrcoef : numpy.ndarray
-            Sample correlation coefficient, normalized to the interval [0, 1], with the
-            same shape as the input interferogram.
-        nlooks : float
-            Effective number of spatial looks used to form the input correlation data.
-
-        Returns
-        -------
-        unwphase : numpy.ndarray
-            Unwrapped phase, in radians.
-        conncomp : numpy.ndarray
-            Connected component labels, with the same shape as the unwrapped phase.
-        """
         # Configure ICU to unwrap the interferogram as a single tile (no bootstrapping).
         phass = isce3.unwrap.Phass(
             correlation_threshold=self.coherence_thresh,

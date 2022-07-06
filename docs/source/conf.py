@@ -19,6 +19,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
 ]
+templates_path = ["templates"]
 
 # Options for HTML output.
 html_theme = "sphinx_rtd_theme"
@@ -26,10 +27,10 @@ html_title = "tophu"
 
 # Extension configuration options: `sphinxcontrib-bibtex`.
 bibtex_bibfiles = ["references.bib"]
+bibtex_footbibliography_header = ".. rubric:: References"
 
 # Extension configuration options: `sphinx.ext.autosummary`.
 autosummary_generate = True
-autosummary_generate_overwrite = False
 
 # Extension configuration options: `sphinx-copybutton`.
 copybutton_prompt_text = r">>> |\.\.\. |\$ "
