@@ -29,6 +29,9 @@ html_title = "tophu"
 bibtex_bibfiles = ["references.bib"]
 bibtex_footbibliography_header = ".. rubric:: References"
 
+# Extension configuration options: `sphinx.ext.autodoc`.
+autodoc_typehints = "none"
+
 # Extension configuration options: `sphinx.ext.autosummary`.
 autosummary_generate = True
 
