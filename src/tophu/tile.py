@@ -194,8 +194,8 @@ class TiledPartition:
         array. The resulting object can be used to access a block of data from the
         array.
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         index : int or tuple of int
             Index of the tile.
 

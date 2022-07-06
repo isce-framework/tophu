@@ -437,13 +437,8 @@ class PhassUnwrap(UnwrapCallback):
     """Callback functor for unwrapping using PHASS."""
 
     coherence_thresh: float
-    """float : ???"""
-
     good_coherence: float
-    """float : ???"""
-
     min_region_size: int
-    """float : ???"""
 
     def __init__(
         self,
