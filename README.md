@@ -1,6 +1,6 @@
 # tophu
 
-[![gha](https://github.com/opera-adt/tophu/actions/workflows/workflows.yml/badge.svg)](https://github.com/opera-adt/tophu/actions/workflows/workflows.yml)
+[![gha](https://github.com/opera-adt/tophu/actions/workflows/pytest.yml/badge.svg)](https://github.com/opera-adt/tophu/actions/workflows/pytest.yml)
 [![codecov](https://codecov.io/gh/opera-adt/tophu/branch/main/graph/badge.svg?token=ZKUODHKCQS)](https://codecov.io/gh/opera-adt/tophu)
 
 Multi-Scale 2-D Phase Unwrapping

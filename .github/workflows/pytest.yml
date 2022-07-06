@@ -1,4 +1,4 @@
-name: workflows
+name: pytest
 
 on: [pull_request, push]
 
