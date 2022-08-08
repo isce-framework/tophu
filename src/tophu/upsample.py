@@ -127,15 +127,15 @@ def upsample_fft(
         n = data.shape[axis]
         if iseven(n):
             s = [slice(None)] * data.ndim
-            s[axis] = n // 2  # type: ignore
+            s[axis] = n // 2
             Y[tuple(s)] *= 0.5
     for axis in axes:
         n = data.shape[axis]
         if iseven(n):
             s1 = [slice(None)] * data.ndim
-            s1[axis] = n // 2  # type: ignore
+            s1[axis] = n // 2
             s2 = [slice(None)] * data.ndim
-            s2[axis] = -n // 2  # type: ignore
+            s2[axis] = -n // 2
             Y[tuple(s2)] = Y[tuple(s1)]
 
     # Inverse FFT.
