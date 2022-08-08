@@ -41,11 +41,11 @@ def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
 
     # Normalize `nlooks` into a tuple with length equal to `arr.ndim`. If `nlooks` was a
     # scalar, take the same number of looks along each axis in the array.
-    if isinstance(nlooks, SupportsInt):
-        n = int(nlooks)
+    try:
+        n = int(nlooks)  # type: ignore
         nlooks = (n,) * arr.ndim
-    else:
-        nlooks = tuple([int(n) for n in nlooks])
+    except TypeError:
+        nlooks = tuple([int(n) for n in nlooks])  # type: ignore
         if len(nlooks) != arr.ndim:
             raise ValueError(
                 f"length mismatch: length of nlooks ({len(nlooks)}) must match input"

@@ -228,11 +228,11 @@ def upsample(
 
     # Normalize `ratio` into a tuple with the same length as `axes`. If `ratio` was a
     # scalar, upsample each axis by the same ratio.
-    if isinstance(ratio, SupportsInt):
-        r = int(ratio)
+    try:
+        r = int(ratio)  # type: ignore
         ratio = (r,) * len(axes)
-    else:
-        ratio = tuple([int(r) for r in ratio])
+    except TypeError:
+        ratio = tuple([int(r) for r in ratio])  # type: ignore
         if len(ratio) != len(axes):
             raise ValueError(
                 f"length mismatch: length of ratio ({len(ratio)}) must match number of"

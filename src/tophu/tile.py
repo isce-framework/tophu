@@ -26,10 +26,10 @@ def as_tuple_of_int(ints: IntOrInts) -> Tuple[int, ...]:
     out : tuple of int
         Tuple containing the inputs.
     """
-    if isinstance(ints, SupportsInt):
-        return (int(ints),)
-    else:
-        return tuple([int(i) for i in ints])
+    try:
+        return (int(ints),)  # type: ignore
+    except TypeError:
+        return tuple([int(i) for i in ints])  # type: ignore
 
 
 def ceil_divide(n: ArrayLike, d: ArrayLike) -> NDArray:
