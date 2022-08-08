@@ -106,7 +106,6 @@ class SnaphuUnwrap(UnwrapCallback):
         corrcoef: NDArray[np.floating],
         nlooks: float,
     ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
-
         # Convert input arrays to GDAL rasters with the expected datatypes.
         igram_data = np.asanyarray(igram, dtype=np.complex64)
         igram = isce3.io.gdal.Raster(igram_data)
