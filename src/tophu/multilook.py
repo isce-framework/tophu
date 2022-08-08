@@ -14,7 +14,8 @@ IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
 
 
 def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
-    """Multilook an array by simple averaging.
+    """
+    Multilook an array by simple averaging.
 
     Performs spatial averaging and decimation. Each element in the output array is the
     arithmetic mean of neighboring cells in the input array.

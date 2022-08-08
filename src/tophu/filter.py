@@ -8,7 +8,8 @@ __all__ = [
 
 
 def equiripple_filter_order_kaiser(ptol: float, stol: float, width: float) -> int:
-    r"""Estimate the order of an optimal equiripple FIR filter using Kaiser's formula.
+    r"""
+    Estimate the order of an optimal equiripple FIR filter using Kaiser's formula.
 
     Predicts the order of a finite impulse response (FIR) digital filter obtained from
     the optimal equiripple approximation method using Kaiser's formula\
@@ -60,7 +61,8 @@ def bandpass_equiripple_filter(
     maxiter: int = 25,
     grid_density: int = 16,
 ) -> NDArray:
-    r"""Design a bandpass FIR digital filter using the Parks-McClellan algorithm.
+    r"""
+    Design a bandpass FIR digital filter using the Parks-McClellan algorithm.
 
     Form a linear-phase finite impulse response (FIR) discrete-time digital filter wth
     desired passband, stopband, and attenuation characteristics using the

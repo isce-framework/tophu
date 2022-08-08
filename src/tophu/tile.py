@@ -14,7 +14,8 @@ NDSlice = Tuple[slice, ...]
 
 
 def as_tuple_of_int(ints: IntOrInts) -> Tuple[int, ...]:
-    """Convert the input to a tuple of ints.
+    """
+    Convert the input to a tuple of ints.
 
     Parameters
     ----------
@@ -33,7 +34,8 @@ def as_tuple_of_int(ints: IntOrInts) -> Tuple[int, ...]:
 
 
 def ceil_divide(n: ArrayLike, d: ArrayLike) -> NDArray:
-    """Return the smallest integer greater than or equal to the quotient of the inputs.
+    """
+    Return the smallest integer greater than or equal to the quotient of the inputs.
 
     Computes integer division of dividend `n` by divisor `d`, rounding up instead of
     truncating.
@@ -70,7 +72,8 @@ def round_up_to_next_multiple(n: ArrayLike, base: ArrayLike) -> NDArray:
 
 
 class TiledPartition:
-    """A partitioning of an N-dimensional array into tiles.
+    """
+    A partitioning of an N-dimensional array into tiles.
 
     A `TiledPartition` object subdivides an array of given shape into one or more
     roughly equally sized, possibly overlapping, tiles. Each tile corresponds to a block
@@ -90,7 +93,8 @@ class TiledPartition:
         overlap: Optional[IntOrInts] = None,
         snap_to: Optional[IntOrInts] = None,
     ):
-        """Construct a new `TiledPartition` object.
+        """
+        Construct a new `TiledPartition` object.
 
         Subdivides an array of shape `shape` into (possibly overlapping) tiles of
         roughly equal size.
@@ -170,14 +174,16 @@ class TiledPartition:
 
     @property
     def tiledims(self) -> Tuple[int, ...]:
-        """tuple of int : Shape of a typical tile. The last tile along each axis may be
+        """
+        tuple of int : Shape of a typical tile. The last tile along each axis may be
         smaller.
         """
         return tuple(self._tiledims)
 
     @property
     def strides(self) -> Tuple[int, ...]:
-        """tuple of int : Step size between the start of adjacent tiles along each
+        """
+        tuple of int : Step size between the start of adjacent tiles along each
         axis.
         """
         return tuple(self._strides)
@@ -188,7 +194,8 @@ class TiledPartition:
         return tuple(self._tiledims - self._strides)
 
     def __getitem__(self, index: IntOrInts) -> NDSlice:
-        """Access a tile.
+        """
+        Access a tile.
 
         Returns an index expression corresponding to a tile within the partitioned
         array. The resulting object can be used to access a block of data from the
@@ -222,7 +229,8 @@ class TiledPartition:
         return tuple([slice(a, b) for (a, b) in zip(start, stop)])
 
     def __iter__(self) -> Iterator[NDSlice]:
-        """Iterate over tiles in arbitrary order.
+        """
+        Iterate over tiles in arbitrary order.
 
         Yields
         ------

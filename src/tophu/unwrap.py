@@ -21,7 +21,8 @@ __all__ = [
 
 @runtime_checkable
 class UnwrapCallback(Protocol):
-    """Callback protocol for two-dimensional phase unwrapping algorithms.
+    """
+    Callback protocol for two-dimensional phase unwrapping algorithms.
 
     `UnwrapCallback` defines the abstract interface that unwrapping implementations are
     expected to conform to in order to "plug in" to the multi-scale unwrapping
@@ -34,7 +35,8 @@ class UnwrapCallback(Protocol):
         corrcoef: NDArray[np.floating],
         nlooks: float,
     ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
-        """Perform two-dimensional phase unwrapping.
+        """
+        Perform two-dimensional phase unwrapping.
 
         Parameters
         ----------
@@ -58,7 +60,8 @@ class UnwrapCallback(Protocol):
 
 @dataclasses.dataclass
 class SnaphuUnwrap(UnwrapCallback):
-    r"""Callback functor for unwrapping using SNAPHU.
+    r"""
+    Callback functor for unwrapping using SNAPHU.
 
     Performs unwrapping using the SNAPHU algorithm\ :footcite:p:`chen:2001`.
     """
@@ -67,7 +70,8 @@ class SnaphuUnwrap(UnwrapCallback):
     """str : Statistical cost mode."""
 
     cost_params: Optional[isce3.unwrap.snaphu.CostParams]
-    """isce3.unwrap.snaphu.CostParams or None : Configuration parameters for the
+    """
+    isce3.unwrap.snaphu.CostParams or None : Configuration parameters for the
     specified cost mode.
     """
 
@@ -80,7 +84,8 @@ class SnaphuUnwrap(UnwrapCallback):
         cost_params: Optional[isce3.unwrap.snaphu.CostParams] = None,
         init_method: Literal["mst", "mcf"] = "mcf",
     ):
-        """Construct a new `SnaphuUnwrap` object.
+        """
+        Construct a new `SnaphuUnwrap` object.
 
         Parameters
         ----------
@@ -147,7 +152,8 @@ def create_geotiff(
     length: int,
     dtype: DTypeLike,
 ) -> isce3.io.Raster:
-    """Create a new single-band GeoTiff dataset.
+    """
+    Create a new single-band GeoTiff dataset.
 
     Parameters
     ----------
@@ -184,7 +190,8 @@ def create_geotiff(
 
 
 def to_geotiff(path: PathLike, arr: NDArray) -> isce3.io.Raster:
-    """Write array data to a new single-band GeoTiff dataset.
+    """
+    Write array data to a new single-band GeoTiff dataset.
 
     Parameters
     ----------
@@ -218,7 +225,8 @@ def to_geotiff(path: PathLike, arr: NDArray) -> isce3.io.Raster:
 
 
 def read_raster(path: PathLike, band: int = 1) -> NDArray:
-    """Read raster data from a dataset as an array.
+    """
+    Read raster data from a dataset as an array.
 
     Parameters
     ----------
@@ -243,7 +251,8 @@ class ICUUnwrap(UnwrapCallback):
     """Callback functor for unwrapping using ICU."""
 
     min_coherence: float
-    """float : Minimum coherence of valid data.
+    """
+    float : Minimum coherence of valid data.
 
     Pixels with lower coherence are masked out.
     """
@@ -261,13 +270,15 @@ class ICUUnwrap(UnwrapCallback):
     """bool : Whether to use intensity neutrons."""
 
     phasegrad_window_size: int
-    """int : Window size for estimating phase gradients.
+    """
+    int : Window size for estimating phase gradients.
 
     This parameter is ignored if `use_phasegrad_neutrons` is false.
     """
 
     neutron_phasegrad_thresh: float
-    """float : Neutron absolute phase gradient threshold.
+    """
+    float : Neutron absolute phase gradient threshold.
 
     Absolute phase gradient threshold for detecting phase gradient neutrons, in radians
     per sample.
@@ -276,7 +287,8 @@ class ICUUnwrap(UnwrapCallback):
     """
 
     neutron_intensity_thresh: float
-    """float : Neutron intensity standard deviation threshold.
+    """
+    float : Neutron intensity standard deviation threshold.
 
     Intensity variation threshold for detecting intensity neutrons, in standard
     deviations from the mean (based on local image statistics).
@@ -285,13 +297,15 @@ class ICUUnwrap(UnwrapCallback):
     """
 
     neutron_coherence_thresh: float
-    """float : Coherence threshold for detecting intensity neutrons.
+    """
+    float : Coherence threshold for detecting intensity neutrons.
 
     This parameter is ignored if `use_intensity_neutrons` is false.
     """
 
     min_conncomp_area_frac: float
-    """float : Minimum connected component size fraction.
+    """
+    float : Minimum connected component size fraction.
 
     Minimum connected component area as a fraction of the total size of the
     interferogram tile.
@@ -310,7 +324,8 @@ class ICUUnwrap(UnwrapCallback):
         neutron_coherence_thresh: float = 0.8,
         min_conncomp_area_frac: float = 1.0 / 320.0,
     ):
-        """Construct a new `ICUUnwrap` object.
+        """
+        Construct a new `ICUUnwrap` object.
 
         Parameters
         ----------
@@ -445,7 +460,8 @@ class PhassUnwrap(UnwrapCallback):
         good_coherence: float = 0.7,
         min_region_size: int = 200,
     ):
-        """Construct a new `PhassUnwrap` object.
+        """
+        Construct a new `PhassUnwrap` object.
 
         Parameters
         ----------

@@ -16,7 +16,8 @@ UpsampleMethod = Literal["fft", "nearest"]
 
 
 def normalize_axis_tuple(axes: IndexOrIndicesOrNone, ndim: int) -> Tuple[int, ...]:
-    """Normalize an axis argument into a tuple of nonnegative integer axes.
+    """
+    Normalize an axis argument into a tuple of nonnegative integer axes.
 
     Forbids any axis from being specified multiple times.
 
@@ -49,7 +50,8 @@ def upsample_fft(
     ratio: Tuple[int, ...],
     axes: Tuple[int, ...],
 ) -> NDArray:
-    """Upsample using a Fast Fourier Transform (FFT)-based interpolation method.
+    """
+    Upsample using a Fast Fourier Transform (FFT)-based interpolation method.
 
     Upsample a discrete-time N-dimensional signal by zero-padding in the frequency
     domain. The input signal is assumed to be band-limited.
@@ -155,7 +157,8 @@ def upsample_nearest(
     ratio: Tuple[int, ...],
     axes: Tuple[int, ...],
 ) -> NDArray:
-    """Upsample an array using nearest neighbor interpolation.
+    """
+    Upsample an array using nearest neighbor interpolation.
 
     Each element in `data` is repeated `ratio` times.
 
@@ -198,7 +201,8 @@ def upsample(
     *,
     method: UpsampleMethod = "fft",
 ) -> NDArray:
-    """Upsample an N-dimensional array.
+    """
+    Upsample an N-dimensional array.
 
     Parameters
     ----------
