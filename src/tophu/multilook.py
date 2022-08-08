@@ -63,16 +63,13 @@ def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
         elif n > m:
             raise ValueError("number of looks should not exceed array shape")
 
-    # Warn if the array shape is not an integer multiple of `nlooks`. Warn at most once
-    # (even if multiple axes have this issue).
-    for m, n in zip(arr.shape, nlooks):
-        if m % n != 0:
-            warnings.warn(
-                "input array shape is not an integer multiple of nlooks -- remainder"
-                " samples will be excluded from output",
-                RuntimeWarning,
-            )
-            break
+    # Warn if any array dimensions are not integer multiples of `nlooks`.
+    if not all(m % n == 0 for (m, n) in zip(arr.shape, nlooks)):
+        warnings.warn(
+            "input array shape is not an integer multiple of nlooks -- remainder"
+            " samples will be excluded from output",
+            RuntimeWarning,
+        )
 
     # Initialize output array with zeros.
     out_shape = tuple([m // n for m, n in zip(arr.shape, nlooks)])
@@ -81,11 +78,20 @@ def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
     # Normalization factor (uniform weighting).
     w = 1.0 / np.prod(nlooks)
 
-    # Compute the local average of samples by iteratively accumulating a weighted sum of
-    # cells within each multilook window.
+    # Now compute the local average of samples by iteratively accumulating a weighted
+    # sum of cells within each multilook window.
+
+    # Iterate over indices within the multilook kernel.
     subindices = (range(n) for n in nlooks)
     for index in itertools.product(*subindices):
-        s = tuple([slice(i, j * k, k) for i, j, k in zip(index, out_shape, nlooks)])
-        out += w * arr[s]
+        # Construct a strided multi-dimensional slice (a tuple of slice objects) that
+        # accesses an element of the input array from each multilook window.
+        start = index
+        stop = np.multiply(nlooks, out_shape)
+        step = nlooks
+        ix = tuple([slice(a, b, c) for (a, b, c) in zip(start, stop, step)])
+
+        # Accumulate the weighted sum of the input samples.
+        out += w * arr[ix]
 
     return out

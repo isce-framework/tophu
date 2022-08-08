@@ -211,12 +211,15 @@ class TiledPartition:
             raise ValueError("...")
 
         # Wrap around negative indices.
-        index = [i + n if (i < 0) else i for (i, n) in zip(index, self._ntiles)]
+        def wrap_index(i: int, n: int) -> int:
+            return i + n if (i < 0) else i
+
+        index = [wrap_index(i, n) for (i, n) in zip(index, self._ntiles)]
 
         start = self._strides * index
         stop = np.minimum(start + self._tiledims, self._shape)
 
-        return tuple(itertools.starmap(slice, zip(start, stop)))
+        return tuple([slice(a, b) for (a, b) in zip(start, stop)])
 
     def __iter__(self) -> Iterator[NDSlice]:
         """Iterate over tiles in arbitrary order.
