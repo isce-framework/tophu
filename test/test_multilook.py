@@ -101,14 +101,30 @@ class TestMultilook:
         with pytest.raises(ValueError, match=errmsg):
             tophu.multilook(arr, nlooks=(1, 16))
 
-    def test_throwaway_samples_warning(self):
-        # Check that a warning is emitted if there are throwaway samples due to
-        # the input array shape not being an interger multiple of `nlooks`.
-        arr = np.zeros((21, 21), dtype=np.float64)
+    def test_even_nlooks_warning(self):
+        # Check that a warning is emitted if any component of `nlooks` is even-valued.
+        arr = np.zeros((15, 16), dtype=np.float64)
         with warnings.catch_warnings(record=True) as w:
             # Run `multilook()` with all warnings enabled.
             warnings.simplefilter("always")
-            output = tophu.multilook(arr, nlooks=(4, 5))
+            tophu.multilook(arr, nlooks=(3, 4))
+
+            # Check that a single warning was emitted.
+            assert len(w) == 1
+
+            # Check the warning category and message.
+            assert issubclass(w[0].category, RuntimeWarning)
+            substr = "one or more components of nlooks is even-valued"
+            assert substr in str(w[0].message)
+
+    def test_throwaway_samples_warning(self):
+        # Check that a warning is emitted if there are throwaway samples due to
+        # the input array shape not being an integer multiple of `nlooks`.
+        arr = np.zeros((23, 21), dtype=np.float64)
+        with warnings.catch_warnings(record=True) as w:
+            # Run `multilook()` with all warnings enabled.
+            warnings.simplefilter("always")
+            output = tophu.multilook(arr, nlooks=(3, 5))
 
             # Check that a single warning was emitted.
             assert len(w) == 1
@@ -119,4 +135,4 @@ class TestMultilook:
             assert substr in str(w[0].message)
 
         # Check the output shape.
-        assert output.shape == (5, 4)
+        assert output.shape == (7, 4)

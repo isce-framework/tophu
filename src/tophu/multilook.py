@@ -13,6 +13,11 @@ __all__ = [
 IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
 
 
+def iseven(n: int) -> bool:
+    """Check if the input is even-valued."""
+    return n % 2 == 0
+
+
 def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
     """
     Multilook an array by simple averaging.
@@ -64,8 +69,16 @@ def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
         elif n > m:
             raise ValueError("number of looks should not exceed array shape")
 
+    # Warn if the number of looks along any axis is even-valued.
+    if any(map(iseven, nlooks)):
+        warnings.warn(
+            "one or more components of nlooks is even-valued -- this will result in a"
+            " phase delay in the multilooked data equivalent to a half-bin shift",
+            RuntimeWarning,
+        )
+
     # Warn if any array dimensions are not integer multiples of `nlooks`.
-    if not all(m % n == 0 for (m, n) in zip(arr.shape, nlooks)):
+    if any(m % n != 0 for (m, n) in zip(arr.shape, nlooks)):
         warnings.warn(
             "input array shape is not an integer multiple of nlooks -- remainder"
             " samples will be excluded from output",
