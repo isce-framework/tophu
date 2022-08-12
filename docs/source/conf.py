@@ -56,6 +56,7 @@ numpydoc_validation_checks = {
     "PR09",
     "RT02",
     "SA01",
+    "SA04",
     "SS02",
     "SS05",
     "SS06",

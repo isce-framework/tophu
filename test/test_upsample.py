@@ -1,3 +1,5 @@
+import itertools
+
 import numpy as np
 import pytest
 from numpy.typing import NDArray
@@ -30,8 +32,11 @@ class TestUpsampleFFT:
         t = np.arange(-(n // 2), (n + 1) // 2) / samplerate
         input = signal(t)
 
+        # Output upsampled signal length.
+        n_out = ratio * n
+
         # Upsample.
-        output = tophu.upsample(input, ratio=ratio, method="fft")
+        output = tophu.upsample_fft(input, out_shape=n_out)
 
         # Evaluate the signal at upsampled sample points.
         t0 = t[0]
@@ -67,8 +72,8 @@ class TestUpsampleFFT:
         c = (1.0 - 1.0j) if (dtype is complex) else 1.0
 
         def signal(x, y):
-            x = np.expand_dims(x, axis=1)
-            y = np.expand_dims(y, axis=0)
+            x = np.expand_dims(x, axis=0)
+            y = np.expand_dims(y, axis=1)
             return c * np.sinc(bandwidth * x) * np.sinc(bandwidth * y)
 
         # Evaluate the signal at coarse sample points.
@@ -78,12 +83,15 @@ class TestUpsampleFFT:
         y = np.arange(-(ny // 2), (ny + 1) // 2) / samplerate
         input = signal(x, y)
 
+        # Output upsampled signal length.
+        nx_out, ny_out = ratio * nx, ratio * ny
+
         # Upsample.
-        output = tophu.upsample(input, ratio=ratio, method="fft")
+        output = tophu.upsample_fft(input, out_shape=(ny_out, nx_out))
 
         # Evaluate the signal at upsampled sample points.
-        x_ups = x[0] + ((x[1] - x[0]) / ratio) * np.arange(ratio * nx)
-        y_ups = y[0] + ((y[1] - y[0]) / ratio) * np.arange(ratio * ny)
+        x_ups = x[0] + ((x[1] - x[0]) / ratio) * np.arange(nx_out)
+        y_ups = y[0] + ((y[1] - y[0]) / ratio) * np.arange(ny_out)
         expected = signal(x_ups, y_ups)
 
         # Check output shape & dtype.
@@ -117,7 +125,7 @@ class TestUpsampleFFT:
         input = signal(t)
 
         # "Upsample" with ratio=1.
-        output = tophu.upsample(input, ratio=1, method="fft")
+        output = tophu.upsample_fft(input, out_shape=n)
 
         # Check that output matches input.
         assert np.allclose(output, input, rtol=1e-12, atol=1e-12)
@@ -125,55 +133,38 @@ class TestUpsampleFFT:
     def test_nyquist_splitting(self):
         # Input data is real-valued, even-length, with non-zero Nyquist frequency
         # component.
-        data = np.zeros(128, dtype=np.float64)
+        n = 128
+        data = np.zeros(n, dtype=np.float64)
         data[0] = 1.0
 
         # Check that the upsampled result is purely real-valued.
-        output_real = tophu.upsample(data, ratio=2, method="fft")
-        output_complex = tophu.upsample(data + 0j, ratio=2, method="fft")
+        n_out = 2 * n
+        output_real = tophu.upsample_fft(data, out_shape=n_out)
+        output_complex = tophu.upsample_fft(data + 0j, out_shape=n_out)
         assert np.allclose(output_real + 0j, output_complex, rtol=1e-12, atol=1e-12)
 
     def test_length_two(self):
         # Test input data with length=2.
         data = np.array([1.0 + 0.0j, 0.0 + 0.0j])
-        output = tophu.upsample(data, ratio=2, method="fft")
+        output = tophu.upsample_fft(data, out_shape=4)
         expected = np.array([1.0 + 0.0j, 0.5 + 0.0j, 0.0 + 0.0j, 0.5 + 0.0j])
         assert np.allclose(output, expected, rtol=1e-12, atol=1e-12)
 
-    def test_axis_order(self):
-        # Check the output shape when ordering of `axes` is non-sequential.
-        data = np.zeros((3, 4, 5), dtype=np.complex64)
-        output = tophu.upsample(data, ratio=(2, 3), axes=(2, 0), method="fft")
-        assert output.shape == (9, 4, 10)
-
-    def test_ratio_axes_length_mismatch(self):
-        # Check that `upsample()` fails if lengths of `ratio` and `axes` are
-        # inconsistent.
+    def test_bad_output_ndim(self):
+        # Check that `upsample_fft()` fails if the length of `out_shape` doesn't match
+        # the input array number of dimensions.
         data = np.zeros((4, 5), dtype=np.complex64)
-        errmsg = r"length of ratio \(2\) must match number of upsample axes \(1\)"
+        errmsg = r"length of out_shape \(3\) must match input array rank \(2\)"
         with pytest.raises(ValueError, match=errmsg):
-            tophu.upsample(data, ratio=(2, 3), axes=0, method="fft")
+            tophu.upsample_fft(data, out_shape=(8, 10, 12))
 
-    def test_invalid_ratio(self):
-        # Check that `upsample()` fails if `ratio` is < 1.
+    def test_invalid_out_shape(self):
+        # Check that `upsample_fft()` fails if the desired "upsampled" shape was smaller
+        # than the input array shape.
         data = np.zeros((4, 5), dtype=np.complex64)
-        with pytest.raises(ValueError, match="upsample ratio must be >= 1"):
-            tophu.upsample(data, ratio=(2, 0), method="fft")
-
-    def test_invalid_axes(self):
-        # Check that `upsample()` fails if any axis is out of bounds.
-        data = np.zeros((4, 5), dtype=np.complex64)
-        errmsg = "axis 2 is out of bounds for array of dimension 2"
-        with pytest.raises(np.AxisError, match=errmsg):
-            tophu.upsample(data, ratio=2, axes=(1, 2), method="fft")
-
-    def test_duplicate_axes(self):
-        # Check that `upsample()` fails if any axis in `axes` is repeated.
-        data = np.zeros((3, 4, 5), dtype=np.complex64)
-        with pytest.raises(ValueError, match="repeated axis"):
-            tophu.upsample(data, ratio=3, axes=(2, 2), method="fft")
-        with pytest.raises(ValueError, match="repeated axis"):
-            tophu.upsample(data, ratio=3, axes=(2, -1), method="fft")
+        errmsg = "output shape must be >= input data shape"
+        with pytest.raises(ValueError, match=errmsg):
+            tophu.upsample_fft(data, out_shape=(3, 4))
 
 
 class TestUpsampleNearest:
@@ -186,7 +177,8 @@ class TestUpsampleNearest:
         assert input.flags[order]
 
         ratio = (3, 2, 1)
-        output = tophu.upsample(input, ratio=ratio, method="nearest")
+        out_shape = [r * n for (r, n) in zip(ratio, input.shape)]
+        output = tophu.upsample_nearest(input, out_shape=out_shape)
 
         expected = input
         for axis, r in zip(range(input.ndim), ratio):
@@ -194,10 +186,20 @@ class TestUpsampleNearest:
 
         assert np.allclose(output, expected, rtol=1e-12, atol=1e-12)
 
+    def test_noninteger_upsample_ratio(self):
+        # Test upsampling to an output shape that is not an integer multiple of the
+        # input array shape.
+        input = np.arange(10)
+        output = tophu.upsample_nearest(input, out_shape=55)
 
-class TestUpsample:
-    def test_bad_method(self):
-        # Check that `upsample()` fails if `method` is invalid.
-        data = np.zeros((4, 5), dtype=np.complex64)
-        with pytest.raises(ValueError, match="unsupported method 'asdf'"):
-            tophu.upsample(data, ratio=2, method="asdf")
+        # The output sequence should consist of each element from the input array
+        # repeated either 5 or 6 times in a row (since the upsampling ratio is 5.5). We
+        # use `groupby()` here both to deduplicate consecutive elements and to determine
+        # the number of times that each element was repeated consecutively.
+        uniq = [k for (k, _) in itertools.groupby(output)]
+        assert np.array_equal(input, uniq)
+
+        nrepeats = [len(list(group)) for (_, group) in itertools.groupby(output)]
+        print(f"{nrepeats = }")
+        assert all(n == 5 for n in nrepeats[:-1])
+        assert nrepeats[-1] == 10

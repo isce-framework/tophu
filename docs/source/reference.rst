@@ -27,4 +27,5 @@ API Reference
 
     bandpass_equiripple_filter
     multilook
-    upsample
+    upsample_fft
+    upsample_nearest
