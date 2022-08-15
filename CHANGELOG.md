@@ -8,6 +8,7 @@
 - Tile manager class
 - Abstract interface to "plug-in" unwrapping algorithms
 - Unwrapping via SNAPHU, PHASS, and ICU
+- Baseline multi-scale unwrapping implementation
 
 **Changed**
 

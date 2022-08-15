@@ -1,5 +1,6 @@
 from .filter import *
 from .multilook import *
+from .multiscale import *
 from .tile import *
 from .unwrap import *
 from .upsample import *
