@@ -17,7 +17,6 @@ def dummy_igram_and_coherence(
     Return dummy interferogram and coherence arrays (for tests that don't care about
     their values).
     """
-    length, width = 128, 128
     igram = np.zeros((length, width), dtype=np.complex64)
     coherence = np.ones((length, width), dtype=np.float32)
     return igram, coherence
