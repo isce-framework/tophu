@@ -54,11 +54,10 @@ def jaccard_similarity(a, b):
 
 
 class TestMultiScaleUnwrap:
-    # XXX Currently we're not testing with PHASS due to an issue where the unwrapped
-    # phase seems to not be congruent with the wrapped phase, which causes the
-    # processing to fail. This needs to be further investigated.
     @pytest.mark.parametrize("length,width", [(1023, 1023), (1024, 1024)])
-    @pytest.mark.parametrize("unwrap", [tophu.ICUUnwrap(), tophu.SnaphuUnwrap()])
+    @pytest.mark.parametrize(
+        "unwrap", [tophu.ICUUnwrap(), tophu.PhassUnwrap(), tophu.SnaphuUnwrap()]
+    )
     def test_multiscale_unwrap_phase(self, length, width, unwrap):
         # Radar sensor/geometry parameters.
         near_range = 900_000.0
@@ -129,7 +128,9 @@ class TestMultiScaleUnwrap:
         assert unique_labels == {1}
         assert frac_nonzero(conncomp) > 0.999
 
-    @pytest.mark.parametrize("unwrap", [tophu.ICUUnwrap(), tophu.SnaphuUnwrap()])
+    @pytest.mark.parametrize(
+        "unwrap", [tophu.ICUUnwrap(), tophu.PhassUnwrap(), tophu.SnaphuUnwrap()]
+    )
     def test_multiscale_unwrap_phase_conncomps(self, unwrap):
         length, width = 512, 512
 
@@ -166,14 +167,14 @@ class TestMultiScaleUnwrap:
 
         # Form two islands of high coherence that span multiple tiles, separated by low
         # coherence pixels.
-        conncomp_mask_1 = np.full((length, width), fill_value=True, dtype=np.bool_)
-        conncomp_mask_1[64:-64, 64:-64] = False
+        region1_mask = np.full((length, width), fill_value=True, dtype=np.bool_)
+        region1_mask[64:-64, 64:-64] = False
 
-        conncomp_mask_2 = np.full((length, width), fill_value=False, dtype=np.bool_)
-        conncomp_mask_2[192:-192, 192:-192] = True
+        region2_mask = np.full((length, width), fill_value=False, dtype=np.bool_)
+        region2_mask[192:-192, 192:-192] = True
 
         coherence = np.ones((length, width), dtype=np.float32)
-        coherence[~conncomp_mask_1 & ~conncomp_mask_2] = 0.01
+        coherence[~region1_mask & ~region2_mask] = 0.01
 
         # Get effective number of looks.
         nlooks = dr * da / (range_res * az_res)
@@ -194,12 +195,17 @@ class TestMultiScaleUnwrap:
             ntiles=(2, 2),
         )
 
+        # Get a mask of valid pixels (pixels that were assigned to some connected
+        # component).
+        valid_mask = conncomp != 0
+
         # Check the unwrapped phase within each expected connected component. The
         # unwrapped phase and absolute (true) phase should differ only by a constant
         # integer multiple of 2pi. The test metric is the fraction of correctly
         # unwrapped pixels, i.e. pixels where the unwrapped phase and absolute phase
         # agree up to some constant number of cycles, excluding masked pixels.
-        for mask in [conncomp_mask_1, conncomp_mask_2]:
+        for region_mask in [region1_mask, region2_mask]:
+            mask = region_mask & valid_mask
             phasediff = (phase - unw)[mask]
             offset = round_to_nearest(np.mean(phasediff), 2.0 * np.pi)
             good_pixels = np.isclose(
@@ -211,9 +217,8 @@ class TestMultiScaleUnwrap:
         # XXX We haven't yet implemented a correction for discrepancies between labels
         # from different tiles. For now, just check the mask of all valid pixels,
         # regardless of their label.
-        mask = conncomp != 0
-        expected_mask = conncomp_mask_1 | conncomp_mask_2
-        assert jaccard_similarity(mask, expected_mask) > 0.99
+        expected_mask = region1_mask | region2_mask
+        assert jaccard_similarity(valid_mask, expected_mask) > 0.99
 
     def test_shape_mismatch(self):
         length, width = 128, 128
