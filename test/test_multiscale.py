@@ -1,12 +1,19 @@
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 import pytest
 from numpy.typing import ArrayLike, NDArray
 
 import tophu
+from tophu.unwrap import UnwrapCallback
 
 from .simulate import simulate_phase_noise, simulate_terrain
+
+UNWRAP_FUNCS: List[UnwrapCallback] = [
+    tophu.ICUUnwrap(),
+    tophu.PhassUnwrap(),
+    tophu.SnaphuUnwrap(),
+]
 
 
 def dummy_igram_and_coherence(
@@ -34,14 +41,14 @@ def frac_nonzero(arr: ArrayLike) -> float:
     return np.count_nonzero(arr) / np.size(arr)
 
 
-def jaccard_similarity(a, b):
+def jaccard_similarity(a: ArrayLike, b: ArrayLike) -> float:
     """
     Compute the Jaccard similarity coefficient (intersect-over-union) of two boolean
     arrays.
 
     Parameters
     ----------
-    a, b : array_like
+    a, b : numpy.ndarray
         The input binary masks.
 
     Returns
@@ -49,15 +56,20 @@ def jaccard_similarity(a, b):
     J : float
         The Jaccard similarity coefficient of the two inputs.
     """
+    a = np.asanyarray(a, dtype=np.bool_)
+    b = np.asanyarray(b, dtype=np.bool_)
     return np.sum(a & b) / np.sum(a | b)
 
 
 class TestMultiScaleUnwrap:
     @pytest.mark.parametrize("length,width", [(1023, 1023), (1024, 1024)])
-    @pytest.mark.parametrize(
-        "unwrap", [tophu.ICUUnwrap(), tophu.PhassUnwrap(), tophu.SnaphuUnwrap()]
-    )
-    def test_multiscale_unwrap_phase(self, length, width, unwrap):
+    @pytest.mark.parametrize("unwrap", UNWRAP_FUNCS)
+    def test_multiscale_unwrap_phase(
+        self,
+        length: int,
+        width: int,
+        unwrap: UnwrapCallback,
+    ):
         # Radar sensor/geometry parameters.
         near_range = 900_000.0
         range_spacing = 6.25
@@ -128,10 +140,12 @@ class TestMultiScaleUnwrap:
         assert frac_nonzero(conncomp) > 0.999
 
     @pytest.mark.parametrize("downsample_factor", [(2, 2), (3, 3)])
-    @pytest.mark.parametrize(
-        "unwrap", [tophu.ICUUnwrap(), tophu.PhassUnwrap(), tophu.SnaphuUnwrap()]
-    )
-    def test_multiscale_unwrap_phase_conncomps(self, downsample_factor, unwrap):
+    @pytest.mark.parametrize("unwrap", UNWRAP_FUNCS)
+    def test_multiscale_unwrap_phase_conncomps(
+        self,
+        downsample_factor: Tuple[int, int],
+        unwrap: UnwrapCallback,
+    ):
         length, width = 512, 512
 
         # Radar sensor/geometry parameters.
