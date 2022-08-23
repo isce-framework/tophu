@@ -25,8 +25,13 @@ def lowpass_filter_and_multilook(
     ripple: float = 0.01,
     attenuation: float = 40.0,
 ) -> NDArray:
-    """
+    r"""
     Apply an anti-aliasing pre-filter, then multilook.
+
+    The input array is filtered by applying a low-pass filter constructed using the
+    optimal equiripple method\ :footcite:p:`mcclellan:1973` and then multilooked to
+    produce the downsampled output. However, if the number of looks along any axis is 1,
+    no filtering will be applied along that axis of the array.
 
     Parameters
     ----------
@@ -67,6 +72,12 @@ def lowpass_filter_and_multilook(
         raise ValueError("downsample factor should be a pair of ints")
 
     def get_filter_coeffs(n: int) -> NDArray:
+        # If `n` is 1, then the subsequent multilooking step will be a no-op, so there's
+        # no need to apply a low-pass filter. In that case, we choose the filter
+        # coefficents to have a frequency response of unity.
+        if n == 1:
+            return 1.0
+
         # Get the ratio of the multilooked data sampling rate to the original data
         # sampling rate.
         ratio = 1.0 / n

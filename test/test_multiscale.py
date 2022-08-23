@@ -234,6 +234,79 @@ class TestMultiScaleUnwrap:
         expected_mask = region1_mask | region2_mask
         assert jaccard_similarity(valid_mask, expected_mask) > 0.99
 
+    @pytest.mark.parametrize("downsample_factor", [(1, 1), (1, 4), (5, 1)])
+    def test_multiscale_unwrap_single_look(self, downsample_factor: Tuple[int, int]):
+        length, width = map(lambda d: 256 * d, downsample_factor)
+
+        # Radar sensor/geometry parameters.
+        near_range = 900_000.0
+        range_spacing = 6.25
+        az_spacing = 6.0
+        range_res = 7.5
+        az_res = 6.6
+        bperp = 500.0
+        wvl = 0.24
+        inc_angle = np.deg2rad(37.0)
+
+        # Simulate random topography.
+        z = simulate_terrain(length, width, scale=2000.0, smoothness=0.9, seed=123)
+
+        # Get multilooked sample spacing.
+        nlooks_range = 5
+        nlooks_az = 5
+        dr = nlooks_range * range_spacing
+        da = nlooks_az * az_spacing
+
+        # Simulate topographic phase term.
+        r = near_range + dr * np.arange(width)
+        phase = -4.0 * np.pi / wvl * bperp / r[None, :] * np.sin(inc_angle) * z
+
+        # Add a diagonal linear phase gradient such that, if we were to naively unwrap
+        # by tiles without applying a post-processing correction, each tile will have
+        # some relative phase offset with respect to the other tiles, resulting in
+        # discontinuities at the borders between tiles.
+        x = np.linspace(0.0, 50.0, width, dtype=np.float32)
+        y = np.linspace(0.0, 50.0, length, dtype=np.float32)
+        phase += x + y[:, None]
+
+        # Form simulated interferogram & coherence with no noise.
+        igram = np.exp(1j * phase)
+        coherence = np.ones((length, width), dtype=np.float32)
+
+        # Get effective number of looks.
+        nlooks = dr * da / (range_res * az_res)
+
+        # Unwrap using the multi-resolution approach.
+        unw, conncomp = tophu.multiscale_unwrap(
+            igram=igram,
+            coherence=coherence,
+            nlooks=nlooks,
+            unwrap=tophu.ICUUnwrap(),
+            downsample_factor=downsample_factor,
+            ntiles=downsample_factor,
+        )
+
+        # Get a mask of valid pixels (pixels that were assigned to some connected
+        # component).
+        mask = conncomp != 0
+
+        # Check the unwrapped phase. The unwrapped phase and absolute (true) phase
+        # should differ only by a constant integer multiple of 2pi. The test metric is
+        # the fraction of correctly unwrapped pixels, i.e. pixels where the unwrapped
+        # phase and absolute phase agree up to some constant number of cycles, excluding
+        # masked pixels.
+        phasediff = (phase - unw)[mask]
+        offset = round_to_nearest(np.mean(phasediff), 2.0 * np.pi)
+        good_pixels = np.isclose(unw[mask] + offset, phase[mask], rtol=1e-5, atol=1e-5)
+        assert frac_nonzero(good_pixels) > 0.999
+
+        # Check the connected component labels. There should be a single connected
+        # component (with label 1) which contains most pixels. Any remaining pixels
+        # should be masked out (with label 0).
+        unique_labels = set(np.unique(conncomp[mask]))
+        assert unique_labels == {1}
+        assert frac_nonzero(conncomp) > 0.999
+
     def test_shape_mismatch(self):
         length, width = 128, 128
         igram = np.zeros((length, width), dtype=np.complex64)
