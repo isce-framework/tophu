@@ -434,6 +434,12 @@ def multiscale_unwrap(
     if any(map(lambda n: n < 1, ntiles)):
         raise ValueError("number of tiles must be >= 1")
 
+    # Check for the simple case where processing is single-tile and no additional
+    # downsampling was requested. This case is functionally equivalent to just making a
+    # single call to `unwrap()`.
+    if ntiles == (1, 1) and downsample_factor == (1, 1):
+        return unwrap(igram=igram, corrcoef=coherence, nlooks=nlooks)
+
     # Get a coarse estimate of the unwrapped phase using a low-resolution copy of the
     # interferogram.
     unwrapped_phase_lores, conncomp_lores = coarse_unwrap(
