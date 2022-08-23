@@ -127,10 +127,11 @@ class TestMultiScaleUnwrap:
         assert unique_labels == {1}
         assert frac_nonzero(conncomp) > 0.999
 
+    @pytest.mark.parametrize("downsample_factor", [(2, 2), (3, 3)])
     @pytest.mark.parametrize(
         "unwrap", [tophu.ICUUnwrap(), tophu.PhassUnwrap(), tophu.SnaphuUnwrap()]
     )
-    def test_multiscale_unwrap_phase_conncomps(self, unwrap):
+    def test_multiscale_unwrap_phase_conncomps(self, downsample_factor, unwrap):
         length, width = 512, 512
 
         # Radar sensor/geometry parameters.
@@ -190,7 +191,7 @@ class TestMultiScaleUnwrap:
             coherence=coherence,
             nlooks=nlooks,
             unwrap=unwrap,
-            downsample_factor=(3, 3),
+            downsample_factor=downsample_factor,
             ntiles=(2, 2),
         )
 

@@ -73,7 +73,7 @@ def lowpass_filter_and_multilook(
 
         # Compute the normalized bandwidth of the pass-band (relative to the original
         # sampling rate), given the specified `shape_factor` and `overhang` values.
-        bandwidth = ratio / (1.0 - overhang * (shape_factor - 1.0))
+        bandwidth = ratio / (shape_factor * (1.0 - overhang) + overhang)
 
         # Get low pass filter coefficients. Force the filter length to be odd in order
         # to avoid applying a phase delay.
