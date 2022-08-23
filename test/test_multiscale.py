@@ -325,6 +325,20 @@ class TestMultiScaleUnwrap:
                 ntiles=(2, 2),
             )
 
+    def test_bad_igram_ndim(self):
+        shape = (2, 128, 128)
+        igram = np.zeros(shape, dtype=np.complex64)
+        coherence = np.ones(shape, dtype=np.float32)
+        with pytest.raises(ValueError, match="input array must be 2-dimensional"):
+            tophu.multiscale_unwrap(
+                igram,
+                coherence,
+                nlooks=1.0,
+                unwrap=tophu.ICUUnwrap(),
+                downsample_factor=(3, 3),
+                ntiles=(2, 2),
+            )
+
     def test_bad_nlooks(self):
         igram, coherence = dummy_igram_and_coherence()
         with pytest.raises(ValueError, match="effective number of looks must be >= 1"):
@@ -359,4 +373,18 @@ class TestMultiScaleUnwrap:
                 unwrap=tophu.ICUUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(0, 0),
+            )
+
+    @pytest.mark.parametrize("overhang", [-0.1, 1.1])
+    def test_bad_overhang(self, overhang: float):
+        igram, coherence = dummy_igram_and_coherence()
+        with pytest.raises(ValueError, match="overhang must be between 0 and 1"):
+            tophu.multiscale_unwrap(
+                igram,
+                coherence,
+                nlooks=1.0,
+                unwrap=tophu.ICUUnwrap(),
+                downsample_factor=(3, 3),
+                ntiles=(2, 2),
+                overhang=overhang,
             )
