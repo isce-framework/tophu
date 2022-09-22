@@ -185,6 +185,7 @@ def coarse_unwrap(
     unwrap: UnwrapCallback,
     downsample_factor: Tuple[int, int],
     *,
+    do_lowpass_filter: bool = True,
     shape_factor: float = 1.5,
     overhang: float = 0.5,
     ripple: float = 0.01,
@@ -197,7 +198,7 @@ def coarse_unwrap(
     then used to form a coarse unwrapped phase estimate, which is then upsampled back to
     the original sample spacing.
 
-    A low-pass filter is applied prior to multilooking the interferogram in order to
+    A low-pass filter may be applied prior to multilooking the interferogram in order to
     reduce aliasing effects.
 
     Parameters
@@ -215,23 +216,28 @@ def coarse_unwrap(
     downsample_factor : tuple of int
         The number of looks to take along each axis in order to form the low-resolution
         interferogram.
+    do_lowpass_filter : bool, optional
+        If True, apply a low-pass pre-filter prior to multilooking in order to reduce
+        aliasing effects. (default: True)
     shape_factor : float, optional
         The shape factor of the filter (the ratio of the width of the combined
         pass-band and transition band to the pass-band width). Must be greater than or
         equal to 1. A larger shape factor results in a more gradual filter roll-off.
-        (default: 1.5)
+        Ignored if `do_lowpass_filter` is False. (default: 1.5)
     overhang : float, optional
         The fraction of the low-pass filter transition bandwidth that extends beyond the
         Nyquist frequency of the resulting multilooked data. For example, if
         `overhang=0`, the transition band will be entirely within the Nyquist bandwidth.
         If `overhang=0.5`, the transition band will centered on the Nyquist frequency.
-        The value must be within the interval [0, 1]. (default: 0.5)
+        The value must be within the interval [0, 1]. Ignored if `do_lowpass_filter` is
+        False. (default: 0.5)
     ripple : float, optional
         The maximum allowed ripple amplitude below unity gain in the pass-band, in
-        decibels. (default: 0.01)
+        decibels. Ignored if `do_lowpass_filter` is False. (default: 0.01)
     attenuation : float, optional
         The stop-band attenuation (the difference in amplitude between the ideal gain in
-        the pass-band and the highest gain in the stop-band), in decibels. (default: 40)
+        the pass-band and the highest gain in the stop-band), in decibels. Ignored if
+        `do_lowpass_filter` is False. (default: 40)
 
     Returns
     -------
@@ -242,20 +248,24 @@ def coarse_unwrap(
         An array of connected component labels, with the same shape as the unwrapped
         phase.
     """
-    # Get low-resolution interferogram & coherence data by multilooking. Low-pass filter
-    # the interferogram prior to multilooking to avoid aliasing. Multilooking may raise
-    # warnings if the number of looks is even-valued or the input array shape is not a
-    # multiple of the number of looks, both of which we can safely ignore.
+    # Get low-resolution interferogram & coherence data by multilooking. Optionally
+    # low-pass filter the interferogram prior to multilooking to avoid aliasing.
+    # Multilooking may raise warnings if the number of looks is even-valued or the input
+    # array shape is not a multiple of the number of looks, both of which we can safely
+    # ignore.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
-        igram_lores = lowpass_filter_and_multilook(
-            igram,
-            downsample_factor,
-            shape_factor=shape_factor,
-            overhang=overhang,
-            ripple=ripple,
-            attenuation=attenuation,
-        )
+        if do_lowpass_filter:
+            igram_lores = lowpass_filter_and_multilook(
+                igram,
+                downsample_factor,
+                shape_factor=shape_factor,
+                overhang=overhang,
+                ripple=ripple,
+                attenuation=attenuation,
+            )
+        else:
+            igram_lores = multilook(igram, downsample_factor)
         coherence_lores = multilook(coherence, downsample_factor)
 
     # Calculate the number of looks in the downsampled data.
@@ -359,6 +369,7 @@ def multiscale_unwrap(
     ntiles: Tuple[int, int],
     tile_overlap: Optional[Tuple[int, int]] = None,
     *,
+    do_lowpass_filter: bool = True,
     shape_factor: float = 1.5,
     overhang: float = 0.5,
     ripple: float = 0.01,
@@ -395,24 +406,29 @@ def multiscale_unwrap(
     tile_overlap : tuple of int or None, optional
         The overlap between adjacent tiles along each array axis, in samples.
         (default: None)
+    do_lowpass_filter : bool, optional
+        If True, apply a low-pass pre-filter prior to multilooking in order to reduce
+        aliasing effects. (default: True)
     shape_factor : float, optional
         The shape factor of the anti-aliasing low-pass filter applied prior to
         multilooking (the ratio of the width of the combined pass-band and transition
         band to the pass-band width). A larger shape factor results in a more gradual
-        filter roll-off. (default: 1.5)
+        filter roll-off. Ignored if `do_lowpass_filter` is False. (default: 1.5)
     overhang : float, optional
         The fraction of the low-pass filter transition bandwidth that extends beyond the
         Nyquist frequency of the resulting multilooked data. For example, if
         `overhang=0`, the transition band will be entirely within the Nyquist bandwidth.
         If `overhang=0.5`, the transition band will centered on the Nyquist frequency.
-        The value must be within the interval [0, 1]. (default: 0.5)
+        The value must be within the interval [0, 1]. Ignored if `do_lowpass_filter` is
+        False. (default: 0.5)
     ripple : float, optional
         The maximum allowed ripple amplitude below unity gain in the pass-band of the
-        pre-filter, in decibels. (default: 0.01)
+        pre-filter, in decibels. Ignored if `do_lowpass_filter` is False.
+        (default: 0.01)
     attenuation : float, optional
         The stop-band attenuation of the pre-filter (the difference in amplitude between
         the ideal gain in the pass-band and the highest gain in the stop-band), in
-        decibels. (default: 40)
+        decibels. Ignored if `do_lowpass_filter` is False. (default: 40)
 
     Returns
     -------
@@ -449,6 +465,7 @@ def multiscale_unwrap(
         nlooks=nlooks,
         unwrap=unwrap,
         downsample_factor=downsample_factor,
+        do_lowpass_filter=do_lowpass_filter,
         shape_factor=shape_factor,
         overhang=overhang,
         ripple=ripple,
