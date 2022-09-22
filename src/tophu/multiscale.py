@@ -126,9 +126,9 @@ def upsample_unwrapped_phase(
     Parameters
     ----------
     igram_hires : numpy.ndarray
-        The full-resolution interferogram. A two-dimensional array.
+        The full-resolution interferogram. A two-dimensional complex-valued array.
     igram_lores : numpy.ndarray
-        The downsampled interferogram. A two-dimensional array.
+        The downsampled interferogram. A two-dimensional complex-valued array.
     unwrapped_phase_lores : numpy.ndarray
         The unwrapped phase of the low-resolution interferogram, in radians. An array
         with the same shape as `igram_lores`.
@@ -206,7 +206,7 @@ def coarse_unwrap(
     Parameters
     ----------
     igram : numpy.ndarray
-        The input interferogram. A two-dimensional array.
+        The input interferogram. A two-dimensional complex-valued array.
     coherence : numpy.ndarray
         The sample coherence coefficient, with the same shape as the input
         interferogram.
@@ -375,7 +375,7 @@ def multiscale_unwrap(
     Parameters
     ----------
     igram : numpy.ndarray
-        The input interferogram. A two-dimensional array.
+        The input interferogram. A two-dimensional complex-valued array.
     coherence : numpy.ndarray
         The sample coherence coefficient, with the same shape as the input
         interferogram.
