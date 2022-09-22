@@ -109,8 +109,8 @@ def lowpass_filter_and_multilook(
 
 
 def upsample_unwrapped_phase(
-    igram_hires: NDArray[np.complexfloating],
-    igram_lores: NDArray[np.floating],
+    wrapped_phase_hires: NDArray[np.floating],
+    wrapped_phase_lores: NDArray[np.floating],
     unwrapped_phase_lores: NDArray[np.floating],
     conncomp_lores: NDArray[np.unsignedinteger],
 ) -> NDArray[np.floating]:
@@ -125,13 +125,13 @@ def upsample_unwrapped_phase(
 
     Parameters
     ----------
-    igram_hires : numpy.ndarray
-        The full-resolution interferogram. A two-dimensional complex-valued array.
-    igram_lores : numpy.ndarray
-        The downsampled interferogram. A two-dimensional complex-valued array.
+    wrapped_phase_hires : numpy.ndarray
+        The full-resolution wrapped phase, in radians. A two-dimensional array.
+    wrapped_phase_lores : numpy.ndarray
+        The low-resolution wrapped phase, in radians. A two-dimensional array.
     unwrapped_phase_lores : numpy.ndarray
         The unwrapped phase of the low-resolution interferogram, in radians. An array
-        with the same shape as `igram_lores`.
+        with the same shape as `wrapped_phase_lores`.
     conncomp_lores : numpy.ndarray
         Connected component labels associated with the low-resolution unwrapped phase.
         An array with the same shape as `igram_lores`. Each unique connected component
@@ -151,9 +151,6 @@ def upsample_unwrapped_phase(
         difference between the wrapped and unwrapped phase values is not approximately
         an integer multiple of :math:`2\pi`).
     """
-    # Get wrapped phase from downsampled interferogram.
-    wrapped_phase_lores = np.angle(igram_lores)
-
     # Estimate the number of cycles of phase difference between the unwrapped & wrapped
     # arrays.
     diff_cycles = (unwrapped_phase_lores - wrapped_phase_lores) / (2.0 * np.pi)
@@ -171,10 +168,10 @@ def upsample_unwrapped_phase(
         raise RuntimeError("wrapped and unwrapped phase values are not congruent")
 
     # Upsample the low-res offset between the unwrapped & wrapped phase.
-    diff_cycles_hires = upsample_nearest(diff_cycles_int, out_shape=igram_hires.shape)
-
-    # Get the high-resolution wrapped phase.
-    wrapped_phase_hires = np.angle(igram_hires)
+    diff_cycles_hires = upsample_nearest(
+        diff_cycles_int,
+        out_shape=wrapped_phase_hires.shape,
+    )
 
     # Get the upsampled coarse unwrapped phase field by adding multiples of 2pi to the
     # wrapped phase.
@@ -275,10 +272,14 @@ def coarse_unwrap(
         nlooks=nlooks_lores,
     )
 
+    # Get the wrapped phase at each scale.
+    wrapped_phase_hires = np.angle(igram)
+    wrapped_phase_lores = np.angle(igram_lores)
+
     # Upsample unwrapped phase & connected component labels.
     unwrapped_phase_hires = upsample_unwrapped_phase(
-        igram_hires=igram,
-        igram_lores=igram_lores,
+        wrapped_phase_hires=wrapped_phase_hires,
+        wrapped_phase_lores=wrapped_phase_lores,
         unwrapped_phase_lores=unwrapped_phase,
         conncomp_lores=conncomp,
     )
