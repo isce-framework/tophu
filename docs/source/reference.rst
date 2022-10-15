@@ -27,6 +27,8 @@ API Reference
     :toctree: api
 
     DisjointSetForest
+    deduplicate_labels
+    merge_equivalent_labels
 
 **Signal Processing**
 

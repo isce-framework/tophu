@@ -1,8 +1,10 @@
+import warnings
 from typing import List, Tuple
 
 import numpy as np
 import pytest
 from numpy.typing import ArrayLike, NDArray
+from scipy.stats import mode as _mode
 
 import tophu
 from tophu.unwrap import UnwrapCallback
@@ -14,6 +16,14 @@ UNWRAP_FUNCS: List[UnwrapCallback] = [
     tophu.PhassUnwrap(),
     tophu.SnaphuUnwrap(),
 ]
+
+
+def mode(arr: ArrayLike) -> NDArray:
+    """Return the modal (most common) value in the array."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=FutureWarning)
+        x, _ = _mode(arr, axis=None)
+    return x
 
 
 def dummy_igram_and_coherence(
@@ -227,12 +237,27 @@ class TestMultiScaleUnwrap:
             )
             assert frac_nonzero(good_pixels) > 0.999
 
-        # Check the connected component labels.
-        # XXX We haven't yet implemented a correction for discrepancies between labels
-        # from different tiles. For now, just check the mask of all valid pixels,
-        # regardless of their label.
-        expected_mask = region1_mask | region2_mask
-        assert jaccard_similarity(valid_mask, expected_mask) > 0.99
+        # Check the connected component labels. There should be two connected
+        # components, labeled 1 and 2, as well as masked-out pixels labeled 0.
+        assert set(np.unique(conncomp)) == {0, 1, 2}
+
+        # Check that each high-coherence region is associated with a single connected
+        # component. The test checks the fraction of pixels within each region mask
+        # whose label matches the modal (most common) label from that region. It also
+        # checks that the modal label is nonzero.
+        for mask in [region1_mask, region2_mask]:
+            modal_label = mode(conncomp[mask])
+            assert frac_nonzero(conncomp[mask] == modal_label) > 0.95
+            assert modal_label != 0
+
+        # Check that the modal label of each region mask is different.
+        assert mode(conncomp[region1_mask]) != mode(conncomp[region2_mask])
+
+        # Check that the remaining non-region pixels are masked out (labeled 0). The
+        # test compares the fraction of non-region pixels that were labeled 0 to a
+        # predefined threshold.
+        nonregion_mask = ~(region1_mask | region2_mask)
+        assert frac_nonzero(conncomp[nonregion_mask] == 0) > 0.95
 
     @pytest.mark.parametrize("downsample_factor", [(1, 1), (1, 4), (5, 1)])
     def test_multiscale_unwrap_single_look(self, downsample_factor: Tuple[int, int]):

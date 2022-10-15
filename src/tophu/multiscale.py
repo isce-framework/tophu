@@ -6,6 +6,7 @@ import scipy.signal
 from numpy.typing import ArrayLike, NDArray
 
 from .filter import bandpass_equiripple_filter
+from .label import deduplicate_labels, merge_equivalent_labels
 from .multilook import multilook
 from .tile import TiledPartition
 from .unwrap import UnwrapCallback
@@ -497,4 +498,11 @@ def multiscale_unwrap(
             conncomp_lores[tile],
         )
 
-    return unwrapped_phase, conncomp
+    # De-duplicate connected component labels from different tiles.
+    deduplicate_labels(conncomp, tiles)
+
+    # Merge equivalent connected component labels such that components that span
+    # multiple tiles are associated with a single unique label.
+    new_conncomp = merge_equivalent_labels(conncomp, tiles)
+
+    return unwrapped_phase, new_conncomp

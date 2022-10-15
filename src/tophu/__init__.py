@@ -1,4 +1,5 @@
 from .filter import *
+from .label import *
 from .multilook import *
 from .multiscale import *
 from .tile import *
