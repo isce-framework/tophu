@@ -2,6 +2,7 @@ from .filter import *
 from .multilook import *
 from .multiscale import *
 from .tile import *
+from .union_find import *
 from .unwrap import *
 from .upsample import *
 

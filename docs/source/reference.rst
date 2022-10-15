@@ -21,6 +21,13 @@ API Reference
 
     TiledPartition
 
+**Connected Component Labeling**
+
+.. autosummary::
+    :toctree: api
+
+    DisjointSetForest
+
 **Signal Processing**
 
 .. autosummary::
