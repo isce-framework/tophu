@@ -133,8 +133,8 @@ def find_connected_labels(
     Find equivalent labels based on pixel connectivity.
 
     Determine the set of equivalent labels to the specified label. Two nonzero labels
-    are considered equivalent if the `conncomp` array contains any two connected pixels
-    with those respective labels.
+    are considered equivalent if there is any connected path between pixels with these
+    labels.
 
     Zero-valued pixels are ignored.
 

@@ -255,7 +255,7 @@ class DisjointSetForest(Generic[T]):
         Parameters
         ----------
         item : object
-            Provisional label.
+            An item within the set.
 
         Returns
         -------

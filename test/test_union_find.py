@@ -202,7 +202,7 @@ class TestDisjointSetForest:
         assert forest.get_parent("a") == "a"
         assert forest.get_parent("b") == "b"
 
-        # After setting the parent node, `get_parent()` should return the new parent.
+        # After setting a new parent node, `get_parent()` should return the new parent.
         forest.set_parent("a", "b")
         assert forest.get_parent("a") == "b"
         assert forest.get_parent("b") == "b"

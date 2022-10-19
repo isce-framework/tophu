@@ -237,8 +237,8 @@ class TestMultiScaleUnwrap:
             )
             assert frac_nonzero(good_pixels) > 0.999
 
-        # Check the connected component labels. There should be two connected
-        # components, labeled 1 and 2, as well as masked-out pixels labeled 0.
+        # Check the set of unique connected component labels. There should be two
+        # connected components, labeled 1 and 2, as well as masked-out pixels labeled 0.
         assert set(np.unique(conncomp)) == {0, 1, 2}
 
         # Check that each high-coherence region is associated with a single connected

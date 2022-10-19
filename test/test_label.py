@@ -117,9 +117,9 @@ class TestDeduplicateLabels:
         tophu.deduplicate_labels(conncomp, tiles)
 
         # After re-labeling, there should be no common labels between different tiles
-        # (except for masked-out pixels with label 0). Get the set of unique labels
-        # within each tile and check that each pair of sets is disjoint (has no common
-        # elements).
+        # (except for masked-out pixels with label 0). Get the set of unique nonzero
+        # labels within each tile and check that each pair of sets is disjoint (has no
+        # common elements).
         tile_label_sets = [
             tophu.unique_nonzero_integers(conncomp[tile]) for tile in tiles
         ]
@@ -148,9 +148,9 @@ class TestDeduplicateLabels:
         tophu.deduplicate_labels(conncomp, tiles)
 
         # After re-labeling, there should be no common labels between different tiles
-        # (except for masked-out pixels with label 0). Get the set of unique labels
-        # within each tile and check that each pair of sets is disjoint (has no common
-        # elements).
+        # (except for masked-out pixels with label 0). Get the set of unique nonzero
+        # labels within each tile and check that each pair of sets is disjoint (has no
+        # common elements).
         tile_label_sets = [
             tophu.unique_nonzero_integers(conncomp[tile]) for tile in tiles
         ]
