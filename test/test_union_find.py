@@ -60,9 +60,14 @@ class TestDisjointSetForest:
         assert forest.find("a") == "a"
 
     def test_add_duplicate_item(self):
+        # Construct a disjoint-set forest and add some items to it.
         forest = tophu.DisjointSetForest()
         forest.add_item("a")
         forest.add_item("b")
+
+        assert forest.num_items() == 2
+        assert forest.get_parent("a") == "a"
+        assert forest.get_parent("b") == "b"
 
         # Check that adding a duplicate item has no effect.
         forest.add_item("a")
@@ -315,9 +320,9 @@ class TestDisjointSetForest:
 
         # Check that flattening does not affect the result of the `find()` operation for
         # each node in the forest.
-        old_roots = forest.roots()
+        old_roots = [forest.find(item) for item in forest.items()]
         forest.flatten()
-        new_roots = forest.roots()
+        new_roots = [forest.find(item) for item in forest.items()]
         assert old_roots == new_roots
 
         # After flattening, each node's parent should be the root of the tree to which
