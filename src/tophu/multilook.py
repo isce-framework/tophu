@@ -72,16 +72,20 @@ def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
     # Warn if the number of looks along any axis is even-valued.
     if any(map(iseven, nlooks)):
         warnings.warn(
-            "one or more components of nlooks is even-valued -- this will result in a"
-            " phase delay in the multilooked data equivalent to a half-bin shift",
+            (
+                "one or more components of nlooks is even-valued -- this will result in"
+                " a phase delay in the multilooked data equivalent to a half-bin shift"
+            ),
             RuntimeWarning,
         )
 
     # Warn if any array dimensions are not integer multiples of `nlooks`.
     if any(m % n != 0 for (m, n) in zip(arr.shape, nlooks)):
         warnings.warn(
-            "input array shape is not an integer multiple of nlooks -- remainder"
-            " samples will be excluded from output",
+            (
+                "input array shape is not an integer multiple of nlooks -- remainder"
+                " samples will be excluded from output"
+            ),
             RuntimeWarning,
         )
 
