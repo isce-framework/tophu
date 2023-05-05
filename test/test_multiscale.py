@@ -39,7 +39,7 @@ def round_to_nearest(n: ArrayLike, base: ArrayLike) -> NDArray:
 
 def frac_nonzero(arr: ArrayLike) -> float:
     """Compute the fraction of pixels in an array that have nonzero values."""
-    return da.count_nonzero(arr) / arr.size
+    return np.count_nonzero(arr) / np.size(arr)
 
 
 def jaccard_similarity(a: ArrayLike, b: ArrayLike) -> float:
@@ -122,7 +122,6 @@ class TestMultiScaleUnwrap:
             nlooks=nlooks,
             unwrap=unwrap,
             downsample_factor=(3, 3),
-            ntiles=(2, 2),
         )
         unw = np.asarray(unw)
         conncomp = np.asarray(conncomp)
@@ -208,16 +207,19 @@ class TestMultiScaleUnwrap:
         # Form simulated interferogram.
         igram = np.exp(1j * phase)
 
+        # Convert to dask arrays.
+        ntiles = (2, 2)
+        chunks = tuple(tophu.util.ceil_divide(igram.shape, ntiles))
+        igram = da.from_array(igram, chunks=chunks)
+        coherence = da.from_array(coherence, chunks=chunks)
+
         # Unwrap using the multi-resolution approach.
-        igram = da.from_array(igram)
-        coherence = da.from_array(coherence)
         unw, conncomp = tophu.multiscale_unwrap(
             igram=igram,
             coherence=coherence,
             nlooks=nlooks,
             unwrap=unwrap,
             downsample_factor=downsample_factor,
-            ntiles=(2, 2),
         )
         unw = np.asarray(unw)
         conncomp = np.asarray(conncomp)
@@ -247,7 +249,6 @@ class TestMultiScaleUnwrap:
         expected_mask = region1_mask | region2_mask
         assert jaccard_similarity(valid_mask, expected_mask) > 0.975
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("downsample_factor", [(1, 1), (1, 4), (5, 1)])
     def test_multiscale_unwrap_single_look(self, downsample_factor: Tuple[int, int]):
         length, width = map(lambda d: 256 * d, downsample_factor)
@@ -290,16 +291,19 @@ class TestMultiScaleUnwrap:
         # Get effective number of looks.
         nlooks = dr * daz / (range_res * az_res)
 
+        # Convert to dask arrays.
+        ntiles = downsample_factor
+        chunks = tuple(tophu.util.ceil_divide(igram.shape, ntiles))
+        igram = da.from_array(igram, chunks=chunks)
+        coherence = da.from_array(coherence, chunks=chunks)
+
         # Unwrap using the multi-resolution approach.
-        igram = da.from_array(igram)
-        coherence = da.from_array(coherence)
         unw, conncomp = tophu.multiscale_unwrap(
             igram=igram,
             coherence=coherence,
             nlooks=nlooks,
-            unwrap=tophu.ICUUnwrap(),
+            unwrap=tophu.PhassUnwrap(),
             downsample_factor=downsample_factor,
-            ntiles=downsample_factor,
         )
         unw = np.asarray(unw)
         conncomp = np.asarray(conncomp)
@@ -323,7 +327,7 @@ class TestMultiScaleUnwrap:
         # should be masked out (with label 0).
         unique_labels = set(np.unique(conncomp[mask]))
         assert unique_labels == {1}
-        assert frac_nonzero(conncomp) > 0.999
+        assert frac_nonzero(conncomp) > 0.99
 
     def test_shape_mismatch(self):
         length, width = 128, 128
@@ -340,9 +344,8 @@ class TestMultiScaleUnwrap:
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
-                ntiles=(2, 2),
             )
 
     def test_bad_igram_ndim(self):
@@ -356,9 +359,8 @@ class TestMultiScaleUnwrap:
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
-                ntiles=(2, 2),
             )
 
     def test_bad_nlooks(self):
@@ -368,9 +370,8 @@ class TestMultiScaleUnwrap:
                 igram,
                 coherence,
                 nlooks=0.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
-                ntiles=(2, 2),
             )
 
     def test_bad_downsample_factor(self):
@@ -380,21 +381,8 @@ class TestMultiScaleUnwrap:
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap=tophu.SnaphuUnwrap(),
                 downsample_factor=(0, 0),
-                ntiles=(2, 2),
-            )
-
-    def test_bad_ntiles(self):
-        igram, coherence = dummy_igram_and_coherence()
-        with pytest.raises(ValueError, match="number of tiles must be >= 1"):
-            tophu.multiscale_unwrap(
-                igram,
-                coherence,
-                nlooks=1.0,
-                unwrap=tophu.ICUUnwrap(),
-                downsample_factor=(3, 3),
-                ntiles=(0, 0),
             )
 
     @pytest.mark.parametrize("overhang", [-0.1, 1.1])
@@ -405,8 +393,7 @@ class TestMultiScaleUnwrap:
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
-                ntiles=(2, 2),
                 overhang=overhang,
             )

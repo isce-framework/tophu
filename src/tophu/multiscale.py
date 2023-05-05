@@ -1,5 +1,5 @@
 import warnings
-from typing import Optional, Tuple
+from typing import Tuple
 
 import dask.array as da
 import numpy as np
@@ -427,8 +427,6 @@ def multiscale_unwrap(
     nlooks: float,
     unwrap: UnwrapCallback,
     downsample_factor: Tuple[int, int],
-    ntiles: Tuple[int, int],
-    tile_overlap: Optional[Tuple[int, int]] = None,
     *,
     do_lowpass_filter: bool = True,
     shape_factor: float = 1.5,
@@ -461,12 +459,6 @@ def multiscale_unwrap(
     downsample_factor : tuple of int
         The number of looks to take along each axis in order to form the low-resolution
         interferogram.
-    ntiles : tuple of int
-        The number of tiles along each axis. A pair of integers specifying the shape of
-        the grid of tiles to partition the input interferogram into.
-    tile_overlap : tuple of int or None, optional
-        The overlap between adjacent tiles along each array axis, in samples.
-        (default: None)
     do_lowpass_filter : bool, optional
         If True, apply a low-pass pre-filter prior to multilooking in order to reduce
         aliasing effects. (default: True)
@@ -509,17 +501,22 @@ def multiscale_unwrap(
         raise ValueError("effective number of looks must be >= 1")
     if any(map(lambda d: d < 1, downsample_factor)):
         raise ValueError("downsample factor must be >= 1")
-    if any(map(lambda n: n < 1, ntiles)):
-        raise ValueError("number of tiles must be >= 1")
+
+    # Interferogram and coherence must have the same chunksize.
+    if coherence.chunksize != igram.chunksize:
+        coherence = coherence.rechunk(igram.chunksize)
 
     # Check for the simple case where processing is single-tile and no additional
     # downsampling was requested. This case is functionally equivalent to just making a
     # single call to `unwrap()`.
-    if ntiles == (1, 1) and downsample_factor == (1, 1):
-        igram = np.asarray(igram)
-        coherence = np.asarray(coherence)
-        unw_phase, conncomp = unwrap(igram=igram, corrcoef=coherence, nlooks=nlooks)
-        return da.from_array(unw_phase), da.from_array(conncomp)
+    if (igram.numblocks == 1) and (downsample_factor == (1, 1)):
+        return map_blocks(
+            unwrap,
+            igram,
+            coherence,
+            nlooks=nlooks,
+            meta=(np.empty((), dtype=np.float32), np.empty((), dtype=np.uint32)),
+        )
 
     # Get a coarse estimate of the unwrapped phase using a low-resolution copy of the
     # interferogram.
