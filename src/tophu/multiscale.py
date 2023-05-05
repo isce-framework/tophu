@@ -1,7 +1,6 @@
 import warnings
 from typing import Optional, Tuple
 
-import dask
 import dask.array as da
 import numpy as np
 import scipy.signal
