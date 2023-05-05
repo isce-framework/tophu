@@ -18,7 +18,8 @@ jobs:
             spec: ""
           - label: Minimum
             spec: |
-              isce3=0.6
+              dask=2021.05
+              isce3=0.12
               numpy=1.21
               python=3.8
               rasterio=1.2
