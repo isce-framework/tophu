@@ -185,6 +185,9 @@ def upsample_unwrapped_phase(
         diff_cycles_int,
         out_shape=wrapped_phase_hires.shape,
     )
+
+    # Ensure that diff_cycles and wrapped phase have the same chunksizes after
+    # upsampling.
     if diff_cycles_hires.chunksize != wrapped_phase_hires.chunksize:
         diff_cycles_hires = diff_cycles_hires.rechunk(wrapped_phase_hires.chunksize)
 
@@ -340,8 +343,11 @@ def coarse_unwrap(
         conncomp_lores=conncomp,
     )
     conncomp_hires = upsample_nearest(conncomp, out_shape=igram.shape)
-    if conncomp_hires.chunksize != igram.chunksize:
-        conncomp_hires = conncomp_hires.rechunk(igram.chunksize)
+
+    # Ensure that connected components and unwrapped phase have the same chunksizes
+    # after upsampling.
+    if conncomp_hires.chunksize != unwrapped_phase_hires.chunksize:
+        conncomp_hires = conncomp_hires.rechunk(unwrapped_phase_hires.chunksize)
 
     return unwrapped_phase_hires, conncomp_hires
 
