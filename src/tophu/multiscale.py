@@ -171,7 +171,9 @@ def upsample_unwrapped_phase(
         atol: float = 1e-3,
     ) -> None:
         mask = conncomp != 0
-        if not np.allclose(diff_cycles[mask], diff_cycles_int[mask], rtol=0.0, atol=atol):
+        if not np.allclose(
+            diff_cycles[mask], diff_cycles_int[mask], rtol=0.0, atol=atol
+        ):
             raise RuntimeError("wrapped and unwrapped phase values are not congruent")
 
     # Check that the unwrapped & wrapped phase values are congruent (i.e. they differ
@@ -510,7 +512,7 @@ def multiscale_unwrap(
     # downsampling was requested. This case is functionally equivalent to just making a
     # single call to `unwrap()`.
     if (igram.numblocks == 1) and (downsample_factor == (1, 1)):
-        return map_blocks(
+        return map_blocks(  # type: ignore[return-value]
             unwrap,
             igram,
             coherence,

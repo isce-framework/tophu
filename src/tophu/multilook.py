@@ -3,7 +3,6 @@ from typing import Iterable, SupportsInt, Tuple, Union, cast
 
 import dask.array as da
 import numpy as np
-from numpy.typing import ArrayLike
 
 from . import util
 
