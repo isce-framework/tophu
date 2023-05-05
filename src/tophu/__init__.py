@@ -4,5 +4,6 @@ from .multiscale import *
 from .tile import *
 from .unwrap import *
 from .upsample import *
+from .util import *
 
 __version__ = "0.1.0"

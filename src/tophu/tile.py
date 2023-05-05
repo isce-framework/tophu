@@ -4,6 +4,8 @@ from typing import Iterable, Iterator, Optional, SupportsInt, Tuple, Union
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
+from . import util
+
 __all__ = [
     "TiledPartition",
 ]
@@ -31,30 +33,6 @@ def as_tuple_of_int(ints: IntOrInts) -> Tuple[int, ...]:
         return (int(ints),)  # type: ignore
     except TypeError:
         return tuple([int(i) for i in ints])  # type: ignore
-
-
-def ceil_divide(n: ArrayLike, d: ArrayLike) -> NDArray:
-    """
-    Return the smallest integer greater than or equal to the quotient of the inputs.
-
-    Computes integer division of dividend `n` by divisor `d`, rounding up instead of
-    truncating.
-
-    Parameters
-    ----------
-    n : array_like
-        Numerator.
-    d : array_like
-        Denominator.
-
-    Returns
-    -------
-    q : numpy.ndarray
-        Quotient.
-    """
-    n = np.asanyarray(n)
-    d = np.asanyarray(d)
-    return (n + d - np.sign(d)) // d
 
 
 def round_up_to_next_multiple(n: ArrayLike, base: ArrayLike) -> NDArray:
@@ -129,7 +107,7 @@ class TiledPartition:
 
         # Get the stride length, in samples, between the start index of adjacent tiles
         # along each axis.
-        strides = ceil_divide(shape, ntiles)
+        strides = util.ceil_divide(shape, ntiles)
 
         # Normalize `overlap` to a tuple of ints.
         if overlap is None:

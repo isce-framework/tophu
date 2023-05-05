@@ -1,9 +1,12 @@
 import itertools
 from typing import Iterable, SupportsInt, Tuple, Union
 
+import dask.array as da
 import numpy as np
 import scipy.fft
 from numpy.typing import ArrayLike, NDArray
+
+from . import util
 
 __all__ = [
     "upsample_fft",
@@ -65,11 +68,6 @@ def validate_upsample_output_shape(
         )
     if any(m < n for (m, n) in zip(out_shape, in_shape)):
         raise ValueError("output shape must be >= input data shape")
-
-
-def iseven(n: int) -> bool:
-    """Check if the input is even-valued."""
-    return n % 2 == 0
 
 
 def upsample_fft(data: ArrayLike, out_shape: IntOrInts) -> NDArray:
@@ -156,13 +154,13 @@ def upsample_fft(data: ArrayLike, out_shape: IntOrInts) -> NDArray:
     # Nyquist bin in the padded array.
     for axis in axes:
         n = data.shape[axis]
-        if iseven(n):
+        if util.iseven(n):
             s = [slice(None)] * data.ndim
             s[axis] = n // 2
             Y[tuple(s)] *= 0.5
     for axis in axes:
         n = data.shape[axis]
-        if iseven(n):
+        if util.iseven(n):
             s1 = [slice(None)] * data.ndim
             s1[axis] = n // 2
             s2 = [slice(None)] * data.ndim
@@ -184,10 +182,10 @@ def upsample_fft(data: ArrayLike, out_shape: IntOrInts) -> NDArray:
 
 
 def pad_to_shape(
-    arr: NDArray,
+    arr: da.Array,
     out_shape: Tuple[int, ...],
     mode: str = "constant",
-) -> NDArray:
+) -> da.Array:
     """
     Pad an array to the specified shape.
 
@@ -196,17 +194,17 @@ def pad_to_shape(
 
     Parameters
     ----------
-    arr : numpy.ndarray
+    arr : dask.array.Array
         The input array.
     out_shape : tuple of int
         The shape of the output array after padding.
     mode : str or callable, optional
-        The padding mode. See `numpy.pad()` for a list of possible modes.
+        The padding mode. See `dask.array.pad()` for a list of possible modes.
         (default: 'constant')
 
     Returns
     -------
-    out : numpy.ndarray
+    out : dask.array.Array
         The output padded array with shape equal to `out_shape`.
     """
     # Get the input array shape.
@@ -222,10 +220,10 @@ def pad_to_shape(
 
     # Pad the array according to the specified `mode`.
     zeros = np.zeros_like(padding)
-    return np.pad(arr, list(zip(zeros, padding)), mode=mode)
+    return da.pad(arr, list(zip(zeros, padding)), mode=mode)
 
 
-def upsample_nearest(data: ArrayLike, out_shape: IntOrInts) -> NDArray:
+def upsample_nearest(data: da.Array, out_shape: IntOrInts) -> da.Array:
     """
     Upsample an array using nearest neighbor interpolation.
 
@@ -236,7 +234,7 @@ def upsample_nearest(data: ArrayLike, out_shape: IntOrInts) -> NDArray:
 
     Parameters
     ----------
-    data : array_like
+    data : dask.array.Array
         The input array.
     out_shape : int or iterable of int
         The desired shape of the output array after upsampling. Must be greater than or
@@ -244,14 +242,13 @@ def upsample_nearest(data: ArrayLike, out_shape: IntOrInts) -> NDArray:
 
     Returns
     -------
-    out : numpy.ndarray
+    out : dask.array.Array
         The upsampled array with shape `out_shape`.
 
     See Also
     --------
     upsample_fft
     """
-    data = np.asanyarray(data)
     out_shape = as_tuple_of_int(out_shape)
 
     # Check that `out_shape` is valid.
@@ -266,7 +263,8 @@ def upsample_nearest(data: ArrayLike, out_shape: IntOrInts) -> NDArray:
     newaxes = np.arange(data.ndim) + 1
     s1 = np.insert(data.shape, newaxes, np.ones_like(ratio))
     s2 = np.insert(data.shape, newaxes, ratio)
-    upsampled = np.empty_like(data, shape=s2)
+    chunks = np.insert(data.chunksize, newaxes, ratio)
+    upsampled = da.empty_like(data, shape=s2, chunks=chunks)
     upsampled[:] = data.reshape(s1)
 
     # Reshape output array, collapsing dummy axes.

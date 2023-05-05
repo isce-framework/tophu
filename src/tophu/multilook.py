@@ -1,9 +1,11 @@
-import itertools
 import warnings
 from typing import Iterable, SupportsInt, Tuple, Union, cast
 
+import dask.array as da
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
+from numpy.typing import ArrayLike
+
+from . import util
 
 __all__ = [
     "multilook",
@@ -13,12 +15,7 @@ __all__ = [
 IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
 
 
-def iseven(n: int) -> bool:
-    """Check if the input is even-valued."""
-    return n % 2 == 0
-
-
-def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
+def multilook(arr: da.Array, nlooks: IntOrInts) -> da.Array:
     """
     Multilook an array by simple averaging.
 
@@ -27,14 +24,14 @@ def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
 
     Parameters
     ----------
-    arr : array_like
+    arr : dask.array.Array
         Input array.
     nlooks : int or iterable of int
         Number of looks along each axis of the input array.
 
     Returns
     -------
-    out : numpy.ndarray
+    out : dask.array.Array
         Multilooked array.
 
     Notes
@@ -43,8 +40,6 @@ def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
     specified number of looks, any remainder samples from the end of the array will be
     discarded in the output.
     """
-    arr = np.asanyarray(arr)
-
     # Normalize `nlooks` into a tuple with length equal to `arr.ndim`. If `nlooks` was a
     # scalar, take the same number of looks along each axis in the array.
     try:
@@ -70,7 +65,7 @@ def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
             raise ValueError("number of looks should not exceed array shape")
 
     # Warn if the number of looks along any axis is even-valued.
-    if any(map(iseven, nlooks)):
+    if any(map(util.iseven, nlooks)):
         warnings.warn(
             (
                 "one or more components of nlooks is even-valued -- this will result in"
@@ -89,27 +84,6 @@ def multilook(arr: ArrayLike, nlooks: IntOrInts) -> NDArray:
             RuntimeWarning,
         )
 
-    # Initialize output array with zeros.
-    out_shape = tuple([m // n for m, n in zip(arr.shape, nlooks)])
-    out = np.zeros_like(arr, shape=out_shape)
-
-    # Normalization factor (uniform weighting).
-    w = 1.0 / np.prod(nlooks)
-
-    # Now compute the local average of samples by iteratively accumulating a weighted
-    # sum of cells within each multilook window.
-
-    # Iterate over indices within the multilook kernel.
-    subindices = (range(n) for n in nlooks)
-    for index in itertools.product(*subindices):
-        # Construct a strided multi-dimensional slice (a tuple of slice objects) that
-        # accesses an element of the input array from each multilook window.
-        start = index
-        stop = np.multiply(nlooks, out_shape)
-        step = nlooks
-        ix = tuple([slice(a, b, c) for (a, b, c) in zip(start, stop, step)])
-
-        # Accumulate the weighted sum of the input samples.
-        out += w * arr[ix]
-
-    return out
+    axes = range(arr.ndim)
+    nlooks_dict = {axis: n for (axis, n) in zip(axes, nlooks)}
+    return da.coarsen(np.mean, arr, nlooks_dict, trim_excess=True)
