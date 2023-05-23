@@ -2,7 +2,7 @@ from typing import Tuple, Union
 
 import dask.array as da
 import numpy as np
-from dask.array.chunk import getitem
+from dask.array.core import getitem
 from numpy.typing import ArrayLike, NDArray
 
 __all__ = [
