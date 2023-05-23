@@ -83,6 +83,15 @@ def multilook(arr: da.Array, nlooks: IntOrInts) -> da.Array:
             RuntimeWarning,
         )
 
+        # XXX Workaround for https://github.com/dask/dask/issues/10274 -- trim excess
+        # samples before passing to `dask.array.coarsen()`.
+        def valid_slice(m: int, n: int) -> slice:
+            rem = m % n
+            return slice(-rem) if (rem != 0) else slice(None)
+
+        s = tuple(valid_slice(m, n) for (m, n) in zip(arr.shape, nlooks))
+        arr = arr[s]
+
     axes = range(arr.ndim)
     nlooks_dict = {axis: n for (axis, n) in zip(axes, nlooks)}
-    return da.coarsen(np.mean, arr, nlooks_dict, trim_excess=True)
+    return da.coarsen(np.mean, arr, nlooks_dict)

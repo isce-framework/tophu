@@ -80,6 +80,21 @@ class TestMultilook:
         assert output.dtype == expected.dtype
         assert da.allclose(output, expected, rtol=1e-12, atol=1e-12)
 
+    def test_non_multiple_shape(self):
+        # Generate input & expected output.
+        input = da.arange(25, dtype=np.float64, chunks=(9,))
+        nlooks = 3
+        expected = da.arange(1, 24, 3, dtype=np.float64, chunks=(3,))
+
+        # Multilook.
+        output = tophu.multilook(input, nlooks=nlooks)
+
+        # Check results.
+        assert output.shape == expected.shape
+        assert output.chunks == expected.chunks
+        assert output.dtype == expected.dtype
+        assert da.allclose(output, expected, rtol=1e-12, atol=1e-12)
+
     def test_nlooks_length_mismatch(self):
         # Check that `multilook()` fails if length of `nlooks` doesn't match `arr.ndim`.
         arr = da.zeros((15, 15), dtype=np.float64)
