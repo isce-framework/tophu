@@ -1,4 +1,5 @@
-from typing import Tuple, Union
+from collections.abc import Iterable
+from typing import SupportsInt, Tuple, Union
 
 import dask.array as da
 import numpy as np
@@ -6,10 +7,35 @@ from dask.array.core import getitem
 from numpy.typing import ArrayLike, NDArray
 
 __all__ = [
+    "as_tuple_of_int",
     "ceil_divide",
     "iseven",
     "map_blocks",
+    "round_up_to_next_multiple",
 ]
+
+
+IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
+
+
+def as_tuple_of_int(ints: IntOrInts) -> Tuple[int, ...]:
+    """
+    Convert the input to a tuple of ints.
+
+    Parameters
+    ----------
+    ints : int or iterable of int
+        One or more integers.
+
+    Returns
+    -------
+    out : tuple of int
+        Tuple containing the inputs.
+    """
+    try:
+        return (int(ints),)  # type: ignore
+    except TypeError:
+        return tuple([int(i) for i in ints])  # type: ignore
 
 
 def ceil_divide(n: ArrayLike, d: ArrayLike) -> NDArray:
@@ -62,3 +88,17 @@ def map_blocks(func, *args, **kwargs) -> Union[da.Array, Tuple[da.Array, ...]]:
             for (i, meta) in enumerate(metas)
         )
     return out
+
+
+def round_up_to_next_multiple(n: ArrayLike, base: ArrayLike) -> NDArray:
+    """Round up to the next smallest multiple of `base`."""
+    n = np.asanyarray(n)
+    base = np.asanyarray(base)
+
+    # Determine output datatype based on the inputs using NumPy's type promotion rules.
+    # In particular, if both inputs were integer-valued, the result should also be
+    # integer-valued.
+    out_dtype = np.result_type(n, base)
+
+    out = base * np.ceil(n / base)
+    return np.require(out, dtype=out_dtype)

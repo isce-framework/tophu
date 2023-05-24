@@ -74,3 +74,10 @@ class TestMapBlocks:
         quot, rem = tophu.map_blocks(np.divmod, a, b)
         assert da.all(quot == a // b)
         assert da.all(rem == a % b)
+
+
+def test_round_up_to_next_multiple():
+    assert tophu.round_up_to_next_multiple(5, 10) == 10
+    assert tophu.round_up_to_next_multiple(10, 10) == 10
+    assert tophu.round_up_to_next_multiple(11, 10) == 20
+    assert tophu.round_up_to_next_multiple(-19, 10) == -10

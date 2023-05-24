@@ -2,7 +2,6 @@ import itertools
 from typing import Iterable, Iterator, Optional, SupportsInt, Tuple, Union
 
 import numpy as np
-from numpy.typing import ArrayLike, NDArray
 
 from . import util
 
@@ -13,40 +12,6 @@ __all__ = [
 
 IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
 NDSlice = Tuple[slice, ...]
-
-
-def as_tuple_of_int(ints: IntOrInts) -> Tuple[int, ...]:
-    """
-    Convert the input to a tuple of ints.
-
-    Parameters
-    ----------
-    ints : int or iterable of int
-        One or more integers.
-
-    Returns
-    -------
-    out : tuple of int
-        Tuple containing the inputs.
-    """
-    try:
-        return (int(ints),)  # type: ignore
-    except TypeError:
-        return tuple([int(i) for i in ints])  # type: ignore
-
-
-def round_up_to_next_multiple(n: ArrayLike, base: ArrayLike) -> NDArray:
-    """Round up to the next smallest multiple of `base`."""
-    n = np.asanyarray(n)
-    base = np.asanyarray(base)
-
-    # Determine output datatype based on the inputs using NumPy's type promotion rules.
-    # In particular, if both inputs were integer-valued, the result should also be
-    # integer-valued.
-    out_dtype = np.result_type(n, base)
-
-    out = base * np.ceil(n / base)
-    return np.require(out, dtype=out_dtype)
 
 
 class TiledPartition:
@@ -92,8 +57,8 @@ class TiledPartition:
             (default: None)
         """
         # Convert `shape` and `ntiles` into tuples of ints.
-        shape = as_tuple_of_int(shape)
-        ntiles = as_tuple_of_int(ntiles)
+        shape = util.as_tuple_of_int(shape)
+        ntiles = util.as_tuple_of_int(ntiles)
 
         # Number of dimensions of the partitioned array.
         ndim = len(shape)
@@ -113,7 +78,7 @@ class TiledPartition:
         if overlap is None:
             overlap = ndim * (0,)
         else:
-            overlap = as_tuple_of_int(overlap)
+            overlap = util.as_tuple_of_int(overlap)
             if len(overlap) != ndim:
                 raise ValueError(
                     "size mismatch: shape and overlap must have same length"
@@ -125,7 +90,7 @@ class TiledPartition:
         if snap_to is None:
             snap_to = ndim * (1,)
         else:
-            snap_to = as_tuple_of_int(snap_to)
+            snap_to = util.as_tuple_of_int(snap_to)
             if len(snap_to) != ndim:
                 raise ValueError(
                     "size mismatch: shape and snap_to must have same length"
@@ -134,7 +99,7 @@ class TiledPartition:
                 raise ValueError("snap_to must be > 0")
 
         # Get the dimensions of each tile (except for the last tile along each axis).
-        tiledims = round_up_to_next_multiple(strides + overlap, snap_to)
+        tiledims = util.round_up_to_next_multiple(strides + overlap, snap_to)
 
         # Tile dimensions should not exceed the full array dimensions.
         # XXX: how to handle the case where `shape` is not a multiple of `snap_to`?
@@ -190,7 +155,7 @@ class TiledPartition:
             A tuple of slices that can be used to access the corresponding block of
             data from an array.
         """
-        index = as_tuple_of_int(index)
+        index = util.as_tuple_of_int(index)
 
         if len(index) != len(self.ntiles):
             raise ValueError("...")
