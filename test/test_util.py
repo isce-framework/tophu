@@ -1,10 +1,28 @@
+import multiprocessing
+import threading
+from multiprocessing.pool import ThreadPool
 from typing import Tuple
 
+import dask
 import dask.array as da
 import numpy as np
 import pytest
+from dask.utils import SerializableLock
 
 import tophu
+
+# The type of object returned by `threading.Lock()` on the current platform.
+ThreadingLock = type(threading.Lock())
+
+
+def has_distributed() -> bool:
+    """Check if the `dask.distributed` package is available."""
+    try:
+        import dask.distributed  # noqa: F401
+    except ImportError:
+        return False
+    else:
+        return True
 
 
 class TestCeilDivide:
@@ -39,6 +57,48 @@ class TestCeilDivide:
         result = tophu.ceil_divide([1, 2, 3, 4, 5], 2)
         expected = [1, 1, 2, 2, 3]
         np.testing.assert_array_equal(result, expected)
+
+
+class TestGetLock:
+    def test_no_scheduler(self):
+        assert isinstance(tophu.get_lock(), (ThreadingLock, SerializableLock))
+
+    def test_single_threaded(self):
+        with dask.config.set(scheduler="synchronous"):
+            assert isinstance(tophu.get_lock(), (ThreadingLock, SerializableLock))
+
+    def test_threads_scheduler(self):
+        with dask.config.set(scheduler="threads"):
+            assert isinstance(tophu.get_lock(), (ThreadingLock, SerializableLock))
+
+    def test_thread_pool(self):
+        with dask.config.set(pool=ThreadPool(1)):
+            assert isinstance(tophu.get_lock(), (ThreadingLock, SerializableLock))
+
+    def test_processes_scheduler(self):
+        with dask.config.set(scheduler="processes"):
+            # XXX This returns a proxy object rather than an instance of
+            # `multiprocessing.synchronize.Lock`.
+            # Just test that the function succeeds for now -- not sure how to test this
+            # robustly without getting too complicated.
+            tophu.get_lock()
+
+    def test_process_pool(self):
+        with dask.config.set(pool=multiprocessing.Pool(1)):
+            # XXX This returns a proxy object rather than an instance of
+            # `multiprocessing.synchronize.Lock`.
+            # Just test that the function succeeds for now -- not sure how to test this
+            # robustly without getting too complicated.
+            tophu.get_lock()
+
+    @pytest.mark.skipif(
+        not has_distributed(), reason="requires `dask.distributed` package"
+    )
+    def test_distributed(self):
+        from dask.distributed import Client, Lock
+
+        with Client():
+            assert isinstance(tophu.get_lock(), Lock)
 
 
 def test_iseven():

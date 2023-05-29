@@ -721,4 +721,4 @@ def multiscale_unwrap(
     )
 
     # Store results.
-    da.store([da_unw, da_conncomp], [unw, conncomp])
+    da.store([da_unw, da_conncomp], [unw, conncomp], lock=util.get_lock())

@@ -9,6 +9,7 @@ from numpy.typing import ArrayLike, NDArray
 __all__ = [
     "as_tuple_of_int",
     "ceil_divide",
+    "get_lock",
     "iseven",
     "map_blocks",
     "round_up_to_next_multiple",
@@ -60,6 +61,24 @@ def ceil_divide(n: ArrayLike, d: ArrayLike) -> NDArray:
     n = np.asanyarray(n)
     d = np.asanyarray(d)
     return (n + d - np.sign(d)) // d
+
+
+def get_lock():
+    """Get a lock appropriate for the current Dask scheduler."""
+    import dask.base
+    import dask.utils
+
+    client_or_scheduler = dask.base.get_scheduler()
+
+    try:
+        import dask.distributed
+
+        if isinstance(client_or_scheduler.__self__, dask.distributed.Client):
+            return dask.distributed.Lock(client=client_or_scheduler)
+    except (ImportError, AttributeError):
+        pass
+
+    return dask.utils.get_scheduler_lock(scheduler=client_or_scheduler)
 
 
 def iseven(n: int) -> bool:
