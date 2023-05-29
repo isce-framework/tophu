@@ -1,16 +1,17 @@
 import warnings
-from typing import Tuple
+from typing import Optional, Tuple
 
 import dask.array as da
 import numpy as np
 import scipy.signal
 from numpy.typing import ArrayLike, NDArray
 
+from . import util
 from .filter import bandpass_equiripple_filter
+from .io import DatasetReader, DatasetWriter
 from .multilook import multilook
 from .unwrap import UnwrapCallback
 from .upsample import upsample_nearest
-from .util import map_blocks
 
 __all__ = [
     "multiscale_unwrap",
@@ -322,7 +323,7 @@ def coarse_unwrap(
     coherence_lores_singleblock = to_single_chunk(coherence_lores)
 
     # Unwrap the downsampled data.
-    unwrapped_phase, conncomp = map_blocks(
+    unwrapped_phase, conncomp = util.map_blocks(
         unwrap,
         igram_lores_singleblock,
         coherence_lores_singleblock,
@@ -423,7 +424,7 @@ def adjust_conncomp_offset_cycles(
     return new_unwrapped_phase_hires
 
 
-def multiscale_unwrap(
+def _multiscale_unwrap(
     igram: da.Array,
     coherence: da.Array,
     nlooks: float,
@@ -495,10 +496,7 @@ def multiscale_unwrap(
         phase.
     """
     if igram.shape != coherence.shape:
-        raise ValueError(
-            "shape mismatch: interferogram and coherence arrays must have the same"
-            " shape"
-        )
+        raise ValueError("shape mismatch: igram and coherence must have the same shape")
     if nlooks < 1.0:
         raise ValueError("effective number of looks must be >= 1")
     if any(map(lambda d: d < 1, downsample_factor)):
@@ -512,7 +510,7 @@ def multiscale_unwrap(
     # downsampling was requested. This case is functionally equivalent to just making a
     # single call to `unwrap()`.
     if (igram.numblocks == 1) and (downsample_factor == (1, 1)):
-        return map_blocks(  # type: ignore[return-value]
+        return util.map_blocks(  # type: ignore[return-value]
             unwrap,
             igram,
             coherence,
@@ -536,7 +534,7 @@ def multiscale_unwrap(
     )
 
     # Unwrap each tile independently.
-    unw_phase, conncomp = map_blocks(
+    unw_phase, conncomp = util.map_blocks(
         unwrap,
         igram,
         coherence,
@@ -556,3 +554,171 @@ def multiscale_unwrap(
     )
 
     return unw_phase, conncomp
+
+
+def get_tile_dims(
+    shape: Tuple[int, ...],
+    ntiles: Tuple[int, ...],
+    snap_to: Optional[Tuple[int, ...]] = None,
+) -> Tuple[int, ...]:
+    """
+    Get tile dimensions of an array partitioned into tiles.
+
+    Chooses tile dimensions such that an array of shape `shape` will be subdivided into
+    blocks of roughly equal shape.
+
+    Parameters
+    ----------
+    shape : tuple of int
+        Shape of the array to be partitioned into tiles.
+    ntiles : tuple of int
+        Number of tiles along each array axis. Must be the same length as `shape`.
+    snap_to : tuple of int or None, optional
+        If specified, force tile dimensions to be a multiple of this value.
+        (default: None)
+
+    Returns
+    -------
+    tiledims : tuple of int
+        Shape of a typical tile. The last tile along each axis may be smaller.
+    """
+    # Normalize `shape` and `ntiles` into tuples of ints.
+    shape = util.as_tuple_of_int(shape)
+    ntiles = util.as_tuple_of_int(ntiles)
+
+    # Number of dimensions of the partitioned array.
+    ndim = len(shape)
+
+    if len(ntiles) != ndim:
+        raise ValueError("size mismatch: shape and ntiles must have same length")
+    if any(map(lambda s: s <= 0, shape)):
+        raise ValueError("array dimensions must be > 0")
+    if any(map(lambda n: n < 1, ntiles)):
+        raise ValueError("number of tiles must be >= 1")
+
+    tiledims = util.ceil_divide(shape, ntiles)
+
+    if snap_to is not None:
+        # Normalize `snap_to` to a tuple of ints.
+        snap_to = util.as_tuple_of_int(snap_to)
+
+        if len(snap_to) != ndim:
+            raise ValueError("size mismatch: shape and snap_to must have same length")
+        if any(map(lambda s: s <= 0, snap_to)):
+            raise ValueError("snap_to must be > 0")
+
+        tiledims = util.round_up_to_next_multiple(tiledims, snap_to)
+
+    # Tile dimensions should not exceed the full array dimensions.
+    tiledims = tuple(np.minimum(tiledims, shape))
+
+    return tiledims
+
+
+def multiscale_unwrap(
+    unw: DatasetWriter,
+    conncomp: DatasetWriter,
+    igram: DatasetReader,
+    coherence: DatasetReader,
+    nlooks: float,
+    unwrap: UnwrapCallback,
+    downsample_factor: Tuple[int, int],
+    ntiles: Tuple[int, int],
+    *,
+    do_lowpass_filter: bool = True,
+    shape_factor: float = 1.5,
+    overhang: float = 0.5,
+    ripple: float = 0.01,
+    attenuation: float = 40.0,
+) -> None:
+    """
+    Perform 2-D phase unwrapping using a multi-resolution approach.
+
+    The input interferogram is broken up into smaller tiles, which are then unwrapped
+    independently. In order to avoid phase discontinuities between tiles, additional
+    phase cycles are added or subtracted within each tile in order to minimize the
+    discrepancy with a coarse unwrapped phase estimate formed by multilooking the
+    original interferogram.
+
+    Parameters
+    ----------
+    unw : DatasetWriter
+        The output unwrapped phase, in radians. An array with the same shape as the
+        input interferogram.
+    conncomp : DatasetWriter
+        The output array of connected component labels, with the same shape as the
+        unwrapped phase.
+    igram : DatasetReader
+        The input interferogram. A two-dimensional complex-valued array.
+    coherence : DatasetReader
+        The sample coherence coefficient, with the same shape as the input
+        interferogram.
+    nlooks : float
+        The effective number of looks used to form the input interferogram and
+        coherence.
+    unwrap : UnwrapCallback
+        A callback function used to unwrap the low-resolution interferogram and each
+        high-resolution interferogram tile.
+    downsample_factor : tuple of int
+        The number of looks to take along each axis in order to form the low-resolution
+        interferogram.
+    ntiles : tuple of int
+        The number of tiles along each axis. A pair of integers specifying the shape of
+        the grid of tiles to partition the input interferogram into.
+    do_lowpass_filter : bool, optional
+        If True, apply a low-pass pre-filter prior to multilooking in order to reduce
+        aliasing effects. (default: True)
+    shape_factor : float, optional
+        The shape factor of the anti-aliasing low-pass filter applied prior to
+        multilooking (the ratio of the width of the combined pass-band and transition
+        band to the pass-band width). A larger shape factor results in a more gradual
+        filter roll-off. Ignored if `do_lowpass_filter` is False. (default: 1.5)
+    overhang : float, optional
+        The fraction of the low-pass filter transition bandwidth that extends beyond the
+        Nyquist frequency of the resulting multilooked data. For example, if
+        `overhang=0`, the transition band will be entirely within the Nyquist bandwidth.
+        If `overhang=0.5`, the transition band will centered on the Nyquist frequency.
+        The value must be within the interval [0, 1]. Ignored if `do_lowpass_filter` is
+        False. (default: 0.5)
+    ripple : float, optional
+        The maximum allowed ripple amplitude below unity gain in the pass-band of the
+        pre-filter, in decibels. Ignored if `do_lowpass_filter` is False.
+        (default: 0.01)
+    attenuation : float, optional
+        The stop-band attenuation of the pre-filter (the difference in amplitude between
+        the ideal gain in the pass-band and the highest gain in the stop-band), in
+        decibels. Ignored if `do_lowpass_filter` is False. (default: 40)
+    """
+    if unw.shape != igram.shape:
+        raise ValueError("shape mismatch: igram and unw must have the same shape")
+    if conncomp.shape != unw.shape:
+        raise ValueError("shape mismatch: unw and conncomp must have the same shape")
+
+    # Get chunksize. If the input has a `chunks` attribute (e.g. h5py Datasets, zarr
+    # Arrays), ensure that the chunksize is a multiple of that shape.
+    if hasattr(igram, "chunks"):
+        chunksize = get_tile_dims(igram.shape, ntiles, snap_to=igram.chunks)
+    else:
+        chunksize = get_tile_dims(igram.shape, ntiles)
+
+    # Convert inputs to dask arrays. Interferogram and coherence must have the same
+    # chunksize.
+    da_igram = da.from_array(igram, chunks=chunksize, asarray=True)
+    da_coherence = da.from_array(coherence, chunks=chunksize, asarray=True)
+
+    # Unwrap.
+    da_unw, da_conncomp = _multiscale_unwrap(
+        igram=da_igram,
+        coherence=da_coherence,
+        nlooks=nlooks,
+        unwrap=unwrap,
+        downsample_factor=downsample_factor,
+        do_lowpass_filter=do_lowpass_filter,
+        shape_factor=shape_factor,
+        overhang=overhang,
+        ripple=ripple,
+        attenuation=attenuation,
+    )
+
+    # Store results.
+    da.store([da_unw, da_conncomp], [unw, conncomp])
