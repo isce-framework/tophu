@@ -19,7 +19,7 @@ jobs:
           - label: Minimum
             spec: |
               dask=2022.05.1
-              h5py>=3
+              h5py=3
               isce3=0.12
               numpy=1.21
               python=3.8
