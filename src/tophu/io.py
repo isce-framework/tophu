@@ -78,7 +78,7 @@ class DatasetWriter(Protocol):
         ...
 
 
-def _create_or_extend_file(filepath: Union[str, os.PathLike[str]], size: int) -> None:
+def _create_or_extend_file(filepath: Union[str, os.PathLike], size: int) -> None:
     """
     Create a file with the specified size or extend an existing file to the same size.
 
@@ -130,7 +130,7 @@ class BinaryFile(DatasetReader, DatasetWriter):
 
     def __init__(
         self,
-        filepath: Union[str, os.PathLike[str]],
+        filepath: Union[str, os.PathLike],
         shape: Tuple[int, ...],
         dtype: DTypeLike,
     ):
@@ -232,9 +232,7 @@ class HDF5Dataset(DatasetReader, DatasetWriter):
     dtype: np.dtype
 
     @overload
-    def __init__(
-        self, filepath: Union[str, os.PathLike[str]], datapath: str
-    ):  # noqa: D418
+    def __init__(self, filepath: Union[str, os.PathLike], datapath: str):  # noqa: D418
         """
         Construct a new `HDF5Dataset` object from an existing dataset.
 
@@ -250,7 +248,7 @@ class HDF5Dataset(DatasetReader, DatasetWriter):
     @overload
     def __init__(
         self,
-        filepath: Union[str, os.PathLike[str]],
+        filepath: Union[str, os.PathLike],
         datapath: str,
         shape: Tuple[int, ...],
         dtype: DTypeLike,
@@ -434,7 +432,7 @@ class RasterBand(DatasetReader, DatasetWriter):
     @overload
     def __init__(
         self,
-        filepath: Union[str, os.PathLike[str]],
+        filepath: Union[str, os.PathLike],
         *,
         band: Optional[int] = None,
         driver: Optional[str] = None,
@@ -458,7 +456,7 @@ class RasterBand(DatasetReader, DatasetWriter):
     @overload
     def __init__(
         self,
-        filepath: Union[str, os.PathLike[str]],
+        filepath: Union[str, os.PathLike],
         width: int,
         height: int,
         dtype: DTypeLike,

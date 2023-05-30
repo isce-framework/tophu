@@ -1,8 +1,8 @@
 import os
 import tempfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Iterator, Tuple, Union
 
 import h5py
 import numpy as np
@@ -13,7 +13,7 @@ from numpy.typing import DTypeLike
 import tophu
 
 
-def filesize(filepath: Union[str, os.PathLike[str]]) -> int:
+def filesize(filepath: Union[str, os.PathLike]) -> int:
     """Get file size in bytes."""
     return Path(filepath).stat().st_size
 
@@ -36,7 +36,7 @@ def valid_gdal_dtypes() -> Tuple[np.dtype, ...]:
 
 
 def create_raster_dataset(
-    filepath: Union[str, os.PathLike[str]],
+    filepath: Union[str, os.PathLike],
     driver: str,
     shape: Tuple[int, int],
     count: int,
