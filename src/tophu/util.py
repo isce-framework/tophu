@@ -1,5 +1,4 @@
-from collections.abc import Iterable
-from typing import SupportsInt, Tuple, Union
+from typing import Iterable, SupportsInt, Tuple, Union
 
 import dask.array as da
 import numpy as np
