@@ -5,6 +5,7 @@ import pytest
 from numpy.typing import ArrayLike, NDArray
 
 import tophu
+from tophu.multiscale import get_tile_dims
 from tophu.unwrap import UnwrapCallback
 
 from .simulate import simulate_phase_noise, simulate_terrain
@@ -458,3 +459,40 @@ class TestMultiScaleUnwrap:
                 ntiles=(2, 2),
                 overhang=overhang,
             )
+
+
+class TestGetTileDims:
+    def test_simple(self):
+        shape = (100, 101)
+        ntiles = (4, 3)
+        tiledims = get_tile_dims(shape, ntiles)
+        assert tiledims == (25, 34)
+
+    def test_snapped(self):
+        shape = (30, 40, 50)
+        ntiles = (3, 4, 5)
+        snap_to = (5, 6, 7)
+        tiledims = get_tile_dims(shape, ntiles, snap_to)
+        assert tiledims == (10, 12, 14)
+
+    def test_ntiles_length_mismatch(self):
+        errmsg = "size mismatch: shape and ntiles must have same length"
+        with pytest.raises(ValueError, match=errmsg):
+            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 2))
+
+    def test_bad_shape(self):
+        with pytest.raises(ValueError, match="array axis lengths must be >= 1"):
+            get_tile_dims(shape=(3, 0, 5), ntiles=(1, 2, 1))
+
+    def test_bad_ntiles(self):
+        with pytest.raises(ValueError, match="number of tiles must be >= 1"):
+            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 0, 1))
+
+    def test_snap_to_length_mismatch(self):
+        errmsg = "size mismatch: shape and snap_to must have same length"
+        with pytest.raises(ValueError, match=errmsg):
+            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 2, 1), snap_to=(4, 4))
+
+    def test_bad_snap_to(self):
+        with pytest.raises(ValueError, match="snap_to lengths must be >= 1"):
+            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 2, 1), snap_to=(4, 0, 5))

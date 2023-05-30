@@ -591,8 +591,8 @@ def get_tile_dims(
 
     if len(ntiles) != ndim:
         raise ValueError("size mismatch: shape and ntiles must have same length")
-    if any(map(lambda s: s <= 0, shape)):
-        raise ValueError("array dimensions must be > 0")
+    if any(map(lambda s: s < 1, shape)):
+        raise ValueError("array axis lengths must be >= 1")
     if any(map(lambda n: n < 1, ntiles)):
         raise ValueError("number of tiles must be >= 1")
 
@@ -604,8 +604,8 @@ def get_tile_dims(
 
         if len(snap_to) != ndim:
             raise ValueError("size mismatch: shape and snap_to must have same length")
-        if any(map(lambda s: s <= 0, snap_to)):
-            raise ValueError("snap_to must be > 0")
+        if any(map(lambda s: s < 1, snap_to)):
+            raise ValueError("snap_to lengths must be >= 1")
 
         tiledims = util.round_up_to_next_multiple(tiledims, snap_to)
 
