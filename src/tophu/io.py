@@ -252,6 +252,7 @@ class HDF5Dataset(DatasetReader, DatasetWriter):
         datapath: str,
         shape: Tuple[int, ...],
         dtype: DTypeLike,
+        **kwargs,
     ):  # noqa: D418
         """
         Construct a new `HDF5Dataset` object.
