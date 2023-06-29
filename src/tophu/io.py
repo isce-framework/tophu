@@ -1,5 +1,6 @@
 import mmap
 import os
+import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Protocol, Tuple, Union, overload, runtime_checkable
@@ -307,9 +308,21 @@ class HDF5Dataset(DatasetReader, DatasetWriter):
                 )
                 chunks = dataset.chunks
         else:
-            errmsg = (
-                "the supplied arguments don't match any valid overload of HDF5Dataset"
-            )
+            errmsg = textwrap.dedent("""
+                the supplied arguments don't match any valid overload of HDF5Dataset
+
+                The arguments must match one of the following supported overloads:
+
+                (1) HDF5Dataset(filepath: str | os.PathLike, datapath: str)
+
+                (2) HDF5Dataset(
+                        filepath: str | os.PathLike,
+                        datapath: str,
+                        shape: tuple[int, ...],
+                        dtype: numpy.typing.DTypeLike,
+                        **kwargs,
+                    )
+            """).strip()
             raise TypeError(errmsg)
 
         # Workaround for `frozen=True`.
@@ -513,9 +526,29 @@ class RasterBand(DatasetReader, DatasetWriter):
             mode = "w+"
             count = 1
         else:
-            errmsg = (
-                "the supplied arguments don't match any valid overload of RasterBand"
-            )
+            errmsg = textwrap.dedent("""
+                the supplied arguments don't match any valid overload of RasterBand
+
+                The arguments must match one of the following supported overloads:
+
+                (1) RasterBand(
+                        filepath: str | os.PathLike,
+                        *,
+                        band: int | None = None,
+                        driver: str | None = None,
+                    )
+
+                (2) RasterBand(
+                        filepath: str | os.PathLike,
+                        width: int,
+                        height: int,
+                        dtype: numpy.typing.DTypeLike,
+                        *,
+                        driver: str | None = None,
+                        crs: str | dict | rasterio.crs.CRS | None = None,
+                        transform: rasterio.transform.Affine | None = None,
+                    )
+            """).strip()
             raise TypeError(errmsg)
 
         # Create the dataset if it didn't exist.

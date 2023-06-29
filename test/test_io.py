@@ -263,6 +263,14 @@ class TestHDF5Dataset:
             hdf5_dataset = tophu.HDF5Dataset(filepath, datapath)
             assert hdf5_dataset.chunks == chunks
 
+    def test_bad_init_overload(self):
+        errmsg = (
+            r"^the supplied arguments don't match any valid overload of HDF5Dataset"
+        )
+        with pytest.raises(TypeError, match=errmsg):
+            # Required parameter `dtype` is missing.
+            tophu.HDF5Dataset(filepath="asdf.h5", datapath="/data", shape=(128, 128))
+
 
 class TestRasterBand:
     def test_open_single_band(self):
@@ -403,3 +411,9 @@ class TestRasterBand:
                 transform=transform,
             )
             assert raster_band.transform == transform
+
+    def test_bad_init_overload(self):
+        errmsg = r"^the supplied arguments don't match any valid overload of RasterBand"
+        with pytest.raises(TypeError, match=errmsg):
+            # Required parameter `dtype` is missing.
+            tophu.RasterBand(filepath="asdf.tif", width=128, height=128)
