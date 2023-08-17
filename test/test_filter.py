@@ -13,11 +13,6 @@ def amp2db(x: ArrayLike) -> NDArray:
     return 20.0 * np.log10(x)
 
 
-def iseven(n: int) -> bool:
-    """Check if an integer is even-valued."""
-    return n % 2 == 0
-
-
 class TestBandpassEquirippleFilter:
     # Helper class to make pytest parameterization more readable.
     params = namedtuple("params", ["shape", "cutoff", "ripple", "attenuation"])
@@ -81,9 +76,9 @@ class TestBandpassEquirippleFilter:
         for force_odd in [False, True]:
             coeffs = tophu.bandpass_equiripple_filter(*args, force_odd_length=force_odd)
             if force_odd:
-                assert not iseven(len(coeffs))
+                assert not tophu.iseven(len(coeffs))
             else:
-                assert iseven(len(coeffs))
+                assert tophu.iseven(len(coeffs))
 
     @pytest.mark.parametrize("force_odd", [True, False])
     def test_symmetric(self, force_odd):

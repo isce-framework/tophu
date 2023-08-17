@@ -1,13 +1,15 @@
 import warnings
 from typing import Optional, Tuple
 
+import dask.array as da
 import numpy as np
 import scipy.signal
 from numpy.typing import ArrayLike, NDArray
 
+from . import util
 from .filter import bandpass_equiripple_filter
+from .io import DatasetReader, DatasetWriter
 from .multilook import multilook
-from .tile import TiledPartition
 from .unwrap import UnwrapCallback
 from .upsample import upsample_nearest
 
@@ -17,14 +19,14 @@ __all__ = [
 
 
 def lowpass_filter_and_multilook(
-    arr: ArrayLike,
+    arr: da.Array,
     downsample_factor: Tuple[int, int],
     *,
     shape_factor: float = 1.5,
     overhang: float = 0.5,
     ripple: float = 0.01,
     attenuation: float = 40.0,
-) -> NDArray:
+) -> da.Array:
     r"""
     Apply an anti-aliasing pre-filter, then multilook.
 
@@ -35,7 +37,7 @@ def lowpass_filter_and_multilook(
 
     Parameters
     ----------
-    arr : array_like
+    arr : dask.array.Array
         The input data. A two-dimensional array.
     downsample_factor : tuple of int
         The number of looks to take along each axis of the input array.
@@ -59,11 +61,9 @@ def lowpass_filter_and_multilook(
 
     Returns
     -------
-    out : numpy.ndarray
+    out : dask.array.Array
         The output filtered and multilooked data.
     """
-    arr = np.asanyarray(arr)
-
     if arr.ndim != 2:
         raise ValueError("input array must be 2-dimensional")
     if (overhang < 0.0) or (overhang > 1.0):
@@ -102,18 +102,27 @@ def lowpass_filter_and_multilook(
     coeffs2d = np.outer(*coeffs1d)
 
     # Filter the input data.
-    filtered = scipy.signal.fftconvolve(arr, coeffs2d, mode="same")
+    depth = tuple(np.floor_divide(coeffs2d.shape, 2))
+    filtered = da.map_overlap(
+        scipy.signal.fftconvolve,
+        arr,
+        depth=depth,
+        boundary=0.0,
+        trim=True,
+        in2=coeffs2d,
+        mode="same",
+    )
 
     # Perform spatial averaging.
     return multilook(filtered, downsample_factor)
 
 
 def upsample_unwrapped_phase(
-    wrapped_phase_hires: NDArray[np.floating],
-    wrapped_phase_lores: NDArray[np.floating],
-    unwrapped_phase_lores: NDArray[np.floating],
-    conncomp_lores: NDArray[np.unsignedinteger],
-) -> NDArray[np.floating]:
+    wrapped_phase_hires: da.Array,
+    wrapped_phase_lores: da.Array,
+    unwrapped_phase_lores: da.Array,
+    conncomp_lores: da.Array,
+) -> da.Array:
     r"""
     Upsample an unwrapped phase field resulting from coarse unwrapping.
 
@@ -125,14 +134,14 @@ def upsample_unwrapped_phase(
 
     Parameters
     ----------
-    wrapped_phase_hires : numpy.ndarray
+    wrapped_phase_hires : dask.array.Array
         The full-resolution wrapped phase, in radians. A two-dimensional array.
-    wrapped_phase_lores : numpy.ndarray
+    wrapped_phase_lores : dask.array.Array
         The low-resolution wrapped phase, in radians. A two-dimensional array.
-    unwrapped_phase_lores : numpy.ndarray
+    unwrapped_phase_lores : dask.array.Array
         The unwrapped phase of the low-resolution interferogram, in radians. An array
         with the same shape as `wrapped_phase_lores`.
-    conncomp_lores : numpy.ndarray
+    conncomp_lores : dask.array.Array
         Connected component labels associated with the low-resolution unwrapped phase.
         An array with the same shape as `igram_lores`. Each unique connected component
         should be assigned a positive integer label. Pixels not belonging to any
@@ -140,7 +149,7 @@ def upsample_unwrapped_phase(
 
     Returns
     -------
-    unwrapped_phase_hires : numpy.ndarray
+    unwrapped_phase_hires : dask.array.Array
         The upsampled unwrapped phase, in radians. An array with the same shape as
         `igram_hires`.
 
@@ -154,18 +163,25 @@ def upsample_unwrapped_phase(
     # Estimate the number of cycles of phase difference between the unwrapped & wrapped
     # arrays.
     diff_cycles = (unwrapped_phase_lores - wrapped_phase_lores) / (2.0 * np.pi)
-    diff_cycles_int = np.round(diff_cycles).astype(np.int32)
+    diff_cycles_int = da.round(diff_cycles).astype(np.int32)
 
-    # Get a mask of valid pixels (pixels belonging to any connected component).
-    mask = conncomp_lores != 0
+    def check_congruence(
+        diff_cycles: np.ndarray,
+        diff_cycles_int: np.ndarray,
+        conncomp: np.ndarray,
+        atol: float = 1e-3,
+    ) -> None:
+        mask = conncomp != 0
+        if not np.allclose(
+            diff_cycles[mask], diff_cycles_int[mask], rtol=0.0, atol=atol
+        ):
+            raise RuntimeError("wrapped and unwrapped phase values are not congruent")
 
     # Check that the unwrapped & wrapped phase values are congruent (i.e. they differ
     # only by an integer multiple of 2pi) to within some absolute error tolerance.
     # Exclude invalid pixels since their phase values are not well-defined and may be
     # subject to implementation-specific behavior of different unwrapping algorithms.
-    atol = 1.0e-3
-    if not np.allclose(diff_cycles[mask], diff_cycles_int[mask], rtol=0.0, atol=atol):
-        raise RuntimeError("wrapped and unwrapped phase values are not congruent")
+    da.map_blocks(check_congruence, diff_cycles, diff_cycles_int, conncomp_lores)
 
     # Upsample the low-res offset between the unwrapped & wrapped phase.
     diff_cycles_hires = upsample_nearest(
@@ -173,14 +189,19 @@ def upsample_unwrapped_phase(
         out_shape=wrapped_phase_hires.shape,
     )
 
+    # Ensure that diff_cycles and wrapped phase have the same chunksizes after
+    # upsampling.
+    if diff_cycles_hires.chunks != wrapped_phase_hires.chunks:
+        diff_cycles_hires = diff_cycles_hires.rechunk(wrapped_phase_hires.chunks)
+
     # Get the upsampled coarse unwrapped phase field by adding multiples of 2pi to the
     # wrapped phase.
     return wrapped_phase_hires + 2.0 * np.pi * diff_cycles_hires
 
 
 def coarse_unwrap(
-    igram: NDArray[np.complexfloating],
-    coherence: NDArray[np.floating],
+    igram: da.Array,
+    coherence: da.Array,
     nlooks: float,
     unwrap: UnwrapCallback,
     downsample_factor: Tuple[int, int],
@@ -190,7 +211,7 @@ def coarse_unwrap(
     overhang: float = 0.5,
     ripple: float = 0.01,
     attenuation: float = 40.0,
-) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
+) -> Tuple[da.Array, da.Array]:
     """
     Estimate coarse unwrapped phase by unwrapping a downsampled interferogram.
 
@@ -203,9 +224,9 @@ def coarse_unwrap(
 
     Parameters
     ----------
-    igram : numpy.ndarray
+    igram : dask.array.Array
         The input interferogram. A two-dimensional complex-valued array.
-    coherence : numpy.ndarray
+    coherence : dask.array.Array
         The sample coherence coefficient, with the same shape as the input
         interferogram.
     nlooks : float
@@ -241,10 +262,10 @@ def coarse_unwrap(
 
     Returns
     -------
-    unwrapped_phase : numpy.ndarray
+    unwrapped_phase : dask.array.Array
         The unwrapped phase, in radians. An array with the same shape as the input
         interferogram.
-    conncomp : numpy.ndarray
+    conncomp : dask.array.Array
         An array of connected component labels, with the same shape as the unwrapped
         phase.
     """
@@ -275,16 +296,47 @@ def coarse_unwrap(
     # number of looks).
     nlooks_lores = nlooks * np.prod(downsample_factor)
 
+    # XXX This is a hack to try and trick Dask into doing something that it should be
+    # smart enough to do on its own, but inexplicably does not.
+    #
+    # We're converting the input Dask array into a NumPy array and then back into a Dask
+    # array with a single chunk.
+    #
+    # All we really want to do here is rechunk the input array to a single chunk so that
+    # we can unwrap the full array as a single block. (Even though we're just unwrapping
+    # a single block, we still want to perform this operation using Dask so that it can
+    # run in parallel with other unwrapping steps elsewhere in the code.)
+    #
+    # For some unknown reason, though, if we simply rechunk the input in the usual way,
+    # Dask will wait until one or more other unwrapping steps are finished before this
+    # one starts (even though they have no interdependencies and this one is actually
+    # queued in the task graph first!). It seems to do this regardless of how many
+    # parallel workers we give it.
+    #
+    # Doing the rechunking this way seems to convince Dask that it can, in fact, perform
+    # this unwrapping step independently of all the others, with potentially huge
+    # benefits to overall runtime. So it stays until I can figure what's going on.
+    def to_single_chunk(arr: ArrayLike) -> da.Array:
+        return da.from_array(np.asarray(arr), chunks=arr.shape)
+
+    igram_lores_singleblock = to_single_chunk(igram_lores)
+    coherence_lores_singleblock = to_single_chunk(coherence_lores)
+
     # Unwrap the downsampled data.
-    unwrapped_phase, conncomp = unwrap(
-        igram=igram_lores,
-        corrcoef=coherence_lores,
+    unwrapped_phase, conncomp = util.map_blocks(
+        unwrap,
+        igram_lores_singleblock,
+        coherence_lores_singleblock,
         nlooks=nlooks_lores,
+        meta=(np.empty((), dtype=np.float32), np.empty((), dtype=np.uint32)),
     )
 
+    unwrapped_phase = unwrapped_phase.rechunk(igram_lores.chunks)
+    conncomp = conncomp.rechunk(igram_lores.chunks)
+
     # Get the wrapped phase at each scale.
-    wrapped_phase_hires = np.angle(igram)
-    wrapped_phase_lores = np.angle(igram_lores)
+    wrapped_phase_hires = da.angle(igram)
+    wrapped_phase_lores = da.angle(igram_lores)
 
     # Upsample unwrapped phase & connected component labels.
     unwrapped_phase_hires = upsample_unwrapped_phase(
@@ -295,6 +347,11 @@ def coarse_unwrap(
     )
     conncomp_hires = upsample_nearest(conncomp, out_shape=igram.shape)
 
+    # Ensure that connected components and unwrapped phase have the same chunksizes
+    # after upsampling.
+    if conncomp_hires.chunks != unwrapped_phase_hires.chunks:
+        conncomp_hires = conncomp_hires.rechunk(unwrapped_phase_hires.chunks)
+
     return unwrapped_phase_hires, conncomp_hires
 
 
@@ -303,7 +360,7 @@ def adjust_conncomp_offset_cycles(
     conncomp_hires: NDArray[np.unsignedinteger],
     unwrapped_phase_lores: NDArray[np.floating],
     conncomp_lores: NDArray[np.unsignedinteger],
-) -> None:
+) -> NDArray[np.floating]:
     r"""
     Remove phase cycle offsets from the high-resolution unwrapped phase.
 
@@ -313,8 +370,6 @@ def adjust_conncomp_offset_cycles(
     phase is augmented by adding or subtracting cycles of :math:2\pi` to each connected
     component in order to minimize the mean discrepancy between the high-resolution and
     low-resolution phase values.
-
-    The `unwrapped_phase_hires` array is modified in-place.
 
     Parameters
     ----------
@@ -328,11 +383,18 @@ def adjust_conncomp_offset_cycles(
         shape as `unwrapped_phase_hires`.
     conncomp_lores : numpy.ndarray
         Connected component labels associated with the low-resolution unwrapped phase.
-        An array with the same shape as `unwrapped phase_lores`.
+        An array with the same shape as `unwrapped_phase_lores`.
+
+    Returns
+    -------
+    new_unwrapped_phase_hires : numpy.ndarray
+        The corrected high-resolution unwrapped phase, in radians.
     """
     # Get unique, non-zero connected component labels in the high-resolution data.
     unique_labels = set(np.unique(conncomp_hires))
     unique_nonzero_labels = unique_labels - {0}
+
+    new_unwrapped_phase_hires = np.copy(unwrapped_phase_hires)
 
     # For each connected component, determine the phase cycle offset between the
     # low-resolution and high-resolution unwrapped phase by computing the mean phase
@@ -355,26 +417,26 @@ def adjust_conncomp_offset_cycles(
             )
             avg_offset_cycles = np.round(avg_offset / (2.0 * np.pi))
 
-            # Adjust the high-resolution phase in-place by subtracting a number of 2pi
-            # phase cycles.
-            unwrapped_phase_hires[conncomp_mask] -= 2.0 * np.pi * avg_offset_cycles
+            # Adjust the output unwrapped phase by subtracting a number of 2pi phase
+            # cycles.
+            new_unwrapped_phase_hires[conncomp_mask] -= 2.0 * np.pi * avg_offset_cycles
+
+    return new_unwrapped_phase_hires
 
 
-def multiscale_unwrap(
-    igram: NDArray[np.complexfloating],
-    coherence: NDArray[np.floating],
+def _multiscale_unwrap(
+    igram: da.Array,
+    coherence: da.Array,
     nlooks: float,
     unwrap: UnwrapCallback,
     downsample_factor: Tuple[int, int],
-    ntiles: Tuple[int, int],
-    tile_overlap: Optional[Tuple[int, int]] = None,
     *,
     do_lowpass_filter: bool = True,
     shape_factor: float = 1.5,
     overhang: float = 0.5,
     ripple: float = 0.01,
     attenuation: float = 40.0,
-) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
+) -> Tuple[da.Array, da.Array]:
     """
     Perform 2-D phase unwrapping using a multi-resolution approach.
 
@@ -386,9 +448,9 @@ def multiscale_unwrap(
 
     Parameters
     ----------
-    igram : numpy.ndarray
+    igram : dask.array.Array
         The input interferogram. A two-dimensional complex-valued array.
-    coherence : numpy.ndarray
+    coherence : dask.array.Array
         The sample coherence coefficient, with the same shape as the input
         interferogram.
     nlooks : float
@@ -400,12 +462,6 @@ def multiscale_unwrap(
     downsample_factor : tuple of int
         The number of looks to take along each axis in order to form the low-resolution
         interferogram.
-    ntiles : tuple of int
-        The number of tiles along each axis. A pair of integers specifying the shape of
-        the grid of tiles to partition the input interferogram into.
-    tile_overlap : tuple of int or None, optional
-        The overlap between adjacent tiles along each array axis, in samples.
-        (default: None)
     do_lowpass_filter : bool, optional
         If True, apply a low-pass pre-filter prior to multilooking in order to reduce
         aliasing effects. (default: True)
@@ -432,34 +488,39 @@ def multiscale_unwrap(
 
     Returns
     -------
-    unwrapped_phase : numpy.ndarray
+    unwrapped_phase : dask.array.Array
         The unwrapped phase, in radians. An array with the same shape as the input
         interferogram.
-    conncomp : numpy.ndarray
+    conncomp : dask.array.Array
         An array of connected component labels, with the same shape as the unwrapped
         phase.
     """
     if igram.shape != coherence.shape:
-        raise ValueError(
-            "shape mismatch: interferogram and coherence arrays must have the same"
-            " shape"
-        )
+        raise ValueError("shape mismatch: igram and coherence must have the same shape")
     if nlooks < 1.0:
         raise ValueError("effective number of looks must be >= 1")
     if any(map(lambda d: d < 1, downsample_factor)):
         raise ValueError("downsample factor must be >= 1")
-    if any(map(lambda n: n < 1, ntiles)):
-        raise ValueError("number of tiles must be >= 1")
+
+    # Interferogram and coherence must have the same chunksize.
+    if coherence.chunksize != igram.chunksize:
+        coherence = coherence.rechunk(igram.chunksize)
 
     # Check for the simple case where processing is single-tile and no additional
     # downsampling was requested. This case is functionally equivalent to just making a
     # single call to `unwrap()`.
-    if ntiles == (1, 1) and downsample_factor == (1, 1):
-        return unwrap(igram=igram, corrcoef=coherence, nlooks=nlooks)
+    if (igram.numblocks == 1) and (downsample_factor == (1, 1)):
+        return util.map_blocks(  # type: ignore[return-value]
+            unwrap,
+            igram,
+            coherence,
+            nlooks=nlooks,
+            meta=(np.empty((), dtype=np.float32), np.empty((), dtype=np.uint32)),
+        )
 
     # Get a coarse estimate of the unwrapped phase using a low-resolution copy of the
     # interferogram.
-    unwrapped_phase_lores, conncomp_lores = coarse_unwrap(
+    coarse_unw_phase, coarse_conncomp = coarse_unwrap(
         igram=igram,
         coherence=coherence,
         nlooks=nlooks,
@@ -472,29 +533,192 @@ def multiscale_unwrap(
         attenuation=attenuation,
     )
 
-    # Init output unwrapped phase and connected component labels.
-    unwrapped_phase = np.zeros_like(igram, dtype=np.float32)
-    conncomp = np.zeros_like(igram, dtype=np.uint32)
+    # Unwrap each tile independently.
+    unw_phase, conncomp = util.map_blocks(
+        unwrap,
+        igram,
+        coherence,
+        nlooks=nlooks,
+        meta=(np.empty((), dtype=np.float32), np.empty((), dtype=np.uint32)),
+    )
 
-    # Partition the input interferogram into (possibly overlapping) tiles.
-    tiles = TiledPartition(igram.shape, ntiles=ntiles, overlap=tile_overlap)
+    # Add or subtract multiples of 2pi to each connected component to minimize the mean
+    # discrepancy between the high-res and low-res unwrapped phase (in order to correct
+    # for phase discontinuities between adjacent tiles).
+    unw_phase = da.map_blocks(
+        adjust_conncomp_offset_cycles,
+        unw_phase,
+        conncomp,
+        coarse_unw_phase,
+        coarse_conncomp,
+    )
 
-    for tile in tiles:
-        # Unwrap each tile independently.
-        unwrapped_phase[tile], conncomp[tile] = unwrap(
-            igram=igram[tile],
-            corrcoef=coherence[tile],
-            nlooks=nlooks,
-        )
+    return unw_phase, conncomp
 
-        # Add or subtract multiples of 2pi to each connected component to minimize the
-        # mean discrepancy between the high-res and low-res unwrapped phase (in order to
-        # correct for phase discontinuities between adjacent tiles).
-        adjust_conncomp_offset_cycles(
-            unwrapped_phase[tile],
-            conncomp[tile],
-            unwrapped_phase_lores[tile],
-            conncomp_lores[tile],
-        )
 
-    return unwrapped_phase, conncomp
+def get_tile_dims(
+    shape: Tuple[int, ...],
+    ntiles: Tuple[int, ...],
+    snap_to: Optional[Tuple[int, ...]] = None,
+) -> Tuple[int, ...]:
+    """
+    Get tile dimensions of an array partitioned into tiles.
+
+    Chooses tile dimensions such that an array of shape `shape` will be subdivided into
+    blocks of roughly equal shape.
+
+    Parameters
+    ----------
+    shape : tuple of int
+        Shape of the array to be partitioned into tiles.
+    ntiles : tuple of int
+        Number of tiles along each array axis. Must be the same length as `shape`.
+    snap_to : tuple of int or None, optional
+        If specified, force tile dimensions to be a multiple of this value.
+        (default: None)
+
+    Returns
+    -------
+    tiledims : tuple of int
+        Shape of a typical tile. The last tile along each axis may be smaller.
+    """
+    # Normalize `shape` and `ntiles` into tuples of ints.
+    shape = util.as_tuple_of_int(shape)
+    ntiles = util.as_tuple_of_int(ntiles)
+
+    # Number of dimensions of the partitioned array.
+    ndim = len(shape)
+
+    if len(ntiles) != ndim:
+        raise ValueError("size mismatch: shape and ntiles must have same length")
+    if any(map(lambda s: s < 1, shape)):
+        raise ValueError("array axis lengths must be >= 1")
+    if any(map(lambda n: n < 1, ntiles)):
+        raise ValueError("number of tiles must be >= 1")
+
+    tiledims = util.ceil_divide(shape, ntiles)
+
+    if snap_to is not None:
+        # Normalize `snap_to` to a tuple of ints.
+        snap_to = util.as_tuple_of_int(snap_to)
+
+        if len(snap_to) != ndim:
+            raise ValueError("size mismatch: shape and snap_to must have same length")
+        if any(map(lambda s: s < 1, snap_to)):
+            raise ValueError("snap_to lengths must be >= 1")
+
+        tiledims = util.round_up_to_next_multiple(tiledims, snap_to)
+
+    # Tile dimensions should not exceed the full array dimensions.
+    tiledims = tuple(np.minimum(tiledims, shape))
+
+    return tiledims
+
+
+def multiscale_unwrap(
+    unw: DatasetWriter,
+    conncomp: DatasetWriter,
+    igram: DatasetReader,
+    coherence: DatasetReader,
+    nlooks: float,
+    unwrap: UnwrapCallback,
+    downsample_factor: Tuple[int, int],
+    ntiles: Tuple[int, int],
+    *,
+    do_lowpass_filter: bool = True,
+    shape_factor: float = 1.5,
+    overhang: float = 0.5,
+    ripple: float = 0.01,
+    attenuation: float = 40.0,
+) -> None:
+    """
+    Perform 2-D phase unwrapping using a multi-resolution approach.
+
+    The input interferogram is broken up into smaller tiles, which are then unwrapped
+    independently. In order to avoid phase discontinuities between tiles, additional
+    phase cycles are added or subtracted within each tile in order to minimize the
+    discrepancy with a coarse unwrapped phase estimate formed by multilooking the
+    original interferogram.
+
+    Parameters
+    ----------
+    unw : DatasetWriter
+        The output unwrapped phase, in radians. An array with the same shape as the
+        input interferogram.
+    conncomp : DatasetWriter
+        The output array of connected component labels, with the same shape as the
+        unwrapped phase.
+    igram : DatasetReader
+        The input interferogram. A two-dimensional complex-valued array.
+    coherence : DatasetReader
+        The sample coherence coefficient, with the same shape as the input
+        interferogram.
+    nlooks : float
+        The effective number of looks used to form the input interferogram and
+        coherence.
+    unwrap : UnwrapCallback
+        A callback function used to unwrap the low-resolution interferogram and each
+        high-resolution interferogram tile.
+    downsample_factor : tuple of int
+        The number of looks to take along each axis in order to form the low-resolution
+        interferogram.
+    ntiles : tuple of int
+        The number of tiles along each axis. A pair of integers specifying the shape of
+        the grid of tiles to partition the input interferogram into.
+    do_lowpass_filter : bool, optional
+        If True, apply a low-pass pre-filter prior to multilooking in order to reduce
+        aliasing effects. (default: True)
+    shape_factor : float, optional
+        The shape factor of the anti-aliasing low-pass filter applied prior to
+        multilooking (the ratio of the width of the combined pass-band and transition
+        band to the pass-band width). A larger shape factor results in a more gradual
+        filter roll-off. Ignored if `do_lowpass_filter` is False. (default: 1.5)
+    overhang : float, optional
+        The fraction of the low-pass filter transition bandwidth that extends beyond the
+        Nyquist frequency of the resulting multilooked data. For example, if
+        `overhang=0`, the transition band will be entirely within the Nyquist bandwidth.
+        If `overhang=0.5`, the transition band will centered on the Nyquist frequency.
+        The value must be within the interval [0, 1]. Ignored if `do_lowpass_filter` is
+        False. (default: 0.5)
+    ripple : float, optional
+        The maximum allowed ripple amplitude below unity gain in the pass-band of the
+        pre-filter, in decibels. Ignored if `do_lowpass_filter` is False.
+        (default: 0.01)
+    attenuation : float, optional
+        The stop-band attenuation of the pre-filter (the difference in amplitude between
+        the ideal gain in the pass-band and the highest gain in the stop-band), in
+        decibels. Ignored if `do_lowpass_filter` is False. (default: 40)
+    """
+    if unw.shape != igram.shape:
+        raise ValueError("shape mismatch: igram and unw must have the same shape")
+    if conncomp.shape != unw.shape:
+        raise ValueError("shape mismatch: unw and conncomp must have the same shape")
+
+    # Get chunksize. If the input has a `chunks` attribute (e.g. h5py Datasets, zarr
+    # Arrays), ensure that the chunksize is a multiple of that shape.
+    if hasattr(igram, "chunks"):
+        chunksize = get_tile_dims(igram.shape, ntiles, snap_to=igram.chunks)
+    else:
+        chunksize = get_tile_dims(igram.shape, ntiles)
+
+    # Convert inputs to dask arrays. Interferogram and coherence must have the same
+    # chunksize.
+    da_igram = da.from_array(igram, chunks=chunksize, asarray=True)
+    da_coherence = da.from_array(coherence, chunks=chunksize, asarray=True)
+
+    # Unwrap.
+    da_unw, da_conncomp = _multiscale_unwrap(
+        igram=da_igram,
+        coherence=da_coherence,
+        nlooks=nlooks,
+        unwrap=unwrap,
+        downsample_factor=downsample_factor,
+        do_lowpass_filter=do_lowpass_filter,
+        shape_factor=shape_factor,
+        overhang=overhang,
+        ripple=ripple,
+        attenuation=attenuation,
+    )
+
+    # Store results.
+    da.store([da_unw, da_conncomp], [unw, conncomp], lock=util.get_lock())

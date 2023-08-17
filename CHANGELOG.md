@@ -20,8 +20,10 @@
 
 **Dependencies**
 
-- Require isce3>=0.6
+- Require dask>=2022.05.1
+- Require h5py>=3
+- Require isce3>=0.12
 - Require numpy>=1.21
 - Require python>=3.8
-- Require rasterio>=1.2
+- Require rasterio>=1.3
 - Require scipy>=1.5

@@ -30,3 +30,14 @@ API Reference
     multilook
     upsample_fft
     upsample_nearest
+
+**I/O**
+
+.. autosummary::
+    :toctree: api
+
+    DatasetReader
+    DatasetWriter
+    BinaryFile
+    HDF5Dataset
+    RasterBand

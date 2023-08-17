@@ -47,7 +47,7 @@ repos:
     rev: "6.3.0"
     hooks:
       - id: pydocstyle
-        additional_dependencies: [toml]
+        additional_dependencies: [tomli]
         exclude: test
 
   - repo: https://github.com/sirosen/texthooks

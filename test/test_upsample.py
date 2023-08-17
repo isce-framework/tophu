@@ -1,5 +1,6 @@
 import itertools
 
+import dask.array as da
 import numpy as np
 import pytest
 from numpy.typing import NDArray
@@ -170,11 +171,10 @@ class TestUpsampleFFT:
 class TestUpsampleNearest:
     @pytest.mark.parametrize("order", ["C_CONTIGUOUS", "F_CONTIGUOUS"])
     def test_upsample(self, order):
-        input = np.arange(60).reshape(3, 4, 5)
+        input = da.arange(60).reshape(3, 4, 5)
 
         if order == "F_CONTIGUOUS":
-            input = np.asfortranarray(input)
-        assert input.flags[order]
+            input = da.asanyarray(input, order="F")
 
         ratio = (3, 2, 1)
         out_shape = [r * n for (r, n) in zip(ratio, input.shape)]
@@ -182,14 +182,14 @@ class TestUpsampleNearest:
 
         expected = input
         for axis, r in zip(range(input.ndim), ratio):
-            expected = np.repeat(expected, repeats=r, axis=axis)
+            expected = da.repeat(expected, repeats=r, axis=axis)
 
-        assert np.allclose(output, expected, rtol=1e-12, atol=1e-12)
+        assert da.allclose(output, expected, rtol=1e-12, atol=1e-12)
 
     def test_noninteger_upsample_ratio(self):
         # Test upsampling to an output shape that is not an integer multiple of the
         # input array shape.
-        input = np.arange(10)
+        input = da.arange(10)
         output = tophu.upsample_nearest(input, out_shape=55)
 
         # The output sequence should consist of each element from the input array
@@ -197,9 +197,8 @@ class TestUpsampleNearest:
         # use `groupby()` here both to deduplicate consecutive elements and to determine
         # the number of times that each element was repeated consecutively.
         uniq = [k for (k, _) in itertools.groupby(output)]
-        assert np.array_equal(input, uniq)
+        assert da.all(input == uniq)
 
         nrepeats = [len(list(group)) for (_, group) in itertools.groupby(output)]
-        print(f"{nrepeats = }")
         assert all(n == 5 for n in nrepeats[:-1])
         assert nrepeats[-1] == 10

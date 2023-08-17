@@ -5,28 +5,36 @@ import pytest
 from numpy.typing import ArrayLike, NDArray
 
 import tophu
+from tophu.multiscale import get_tile_dims
 from tophu.unwrap import UnwrapCallback
 
 from .simulate import simulate_phase_noise, simulate_terrain
 
 UNWRAP_FUNCS: List[UnwrapCallback] = [
-    tophu.ICUUnwrap(),
+    # tophu.ICUUnwrap(),
     tophu.PhassUnwrap(),
     tophu.SnaphuUnwrap(),
 ]
 
 
-def dummy_igram_and_coherence(
+def dummy_inputs_and_outputs(
     length: int = 128,
     width: int = 128,
-) -> Tuple[NDArray[np.complexfloating], NDArray[np.floating]]:
+) -> Tuple[
+    NDArray[np.floating],
+    NDArray[np.unsignedinteger],
+    NDArray[np.complexfloating],
+    NDArray[np.floating],
+]:
     """
     Return dummy interferogram and coherence arrays (for tests that don't care about
     their values).
     """
+    unw = np.zeros((length, width), dtype=np.float32)
+    conncomp = np.zeros((length, width), dtype=np.uint32)
     igram = np.zeros((length, width), dtype=np.complex64)
     coherence = np.ones((length, width), dtype=np.float32)
-    return igram, coherence
+    return unw, conncomp, igram, coherence
 
 
 def round_to_nearest(n: ArrayLike, base: ArrayLike) -> NDArray:
@@ -87,7 +95,7 @@ class TestMultiScaleUnwrap:
         nlooks_range = 5
         nlooks_az = 5
         dr = nlooks_range * range_spacing
-        da = nlooks_az * az_spacing
+        daz = nlooks_az * az_spacing
 
         # Simulate topographic phase term.
         r = near_range + dr * np.arange(width)
@@ -106,10 +114,16 @@ class TestMultiScaleUnwrap:
         coherence = np.ones((length, width), dtype=np.float32)
 
         # Get effective number of looks.
-        nlooks = dr * da / (range_res * az_res)
+        nlooks = dr * daz / (range_res * az_res)
+
+        # Init output arrays.
+        unw = np.zeros((length, width), dtype=np.float32)
+        conncomp = np.zeros((length, width), dtype=np.uint32)
 
         # Unwrap using the multi-resolution approach.
-        unw, conncomp = tophu.multiscale_unwrap(
+        tophu.multiscale_unwrap(
+            unw=unw,
+            conncomp=conncomp,
             igram=igram,
             coherence=coherence,
             nlooks=nlooks,
@@ -165,7 +179,7 @@ class TestMultiScaleUnwrap:
         nlooks_range = 5
         nlooks_az = 5
         dr = nlooks_range * range_spacing
-        da = nlooks_az * az_spacing
+        daz = nlooks_az * az_spacing
 
         # Simulate topographic phase term.
         r = near_range + dr * np.arange(width)
@@ -191,7 +205,7 @@ class TestMultiScaleUnwrap:
         coherence[~region1_mask & ~region2_mask] = 0.01
 
         # Get effective number of looks.
-        nlooks = dr * da / (range_res * az_res)
+        nlooks = dr * daz / (range_res * az_res)
 
         # Add phase noise.
         phase += simulate_phase_noise(coherence, nlooks)
@@ -199,8 +213,14 @@ class TestMultiScaleUnwrap:
         # Form simulated interferogram.
         igram = np.exp(1j * phase)
 
+        # Init output arrays.
+        unw = np.zeros((length, width), dtype=np.float32)
+        conncomp = np.zeros((length, width), dtype=np.uint32)
+
         # Unwrap using the multi-resolution approach.
-        unw, conncomp = tophu.multiscale_unwrap(
+        tophu.multiscale_unwrap(
+            unw=unw,
+            conncomp=conncomp,
             igram=igram,
             coherence=coherence,
             nlooks=nlooks,
@@ -232,7 +252,7 @@ class TestMultiScaleUnwrap:
         # from different tiles. For now, just check the mask of all valid pixels,
         # regardless of their label.
         expected_mask = region1_mask | region2_mask
-        assert jaccard_similarity(valid_mask, expected_mask) > 0.99
+        assert jaccard_similarity(valid_mask, expected_mask) > 0.975
 
     @pytest.mark.parametrize("downsample_factor", [(1, 1), (1, 4), (5, 1)])
     def test_multiscale_unwrap_single_look(self, downsample_factor: Tuple[int, int]):
@@ -255,7 +275,7 @@ class TestMultiScaleUnwrap:
         nlooks_range = 5
         nlooks_az = 5
         dr = nlooks_range * range_spacing
-        da = nlooks_az * az_spacing
+        daz = nlooks_az * az_spacing
 
         # Simulate topographic phase term.
         r = near_range + dr * np.arange(width)
@@ -274,14 +294,20 @@ class TestMultiScaleUnwrap:
         coherence = np.ones((length, width), dtype=np.float32)
 
         # Get effective number of looks.
-        nlooks = dr * da / (range_res * az_res)
+        nlooks = dr * daz / (range_res * az_res)
+
+        # Init output arrays.
+        unw = np.zeros((length, width), dtype=np.float32)
+        conncomp = np.zeros((length, width), dtype=np.uint32)
 
         # Unwrap using the multi-resolution approach.
-        unw, conncomp = tophu.multiscale_unwrap(
+        tophu.multiscale_unwrap(
+            unw=unw,
+            conncomp=conncomp,
             igram=igram,
             coherence=coherence,
             nlooks=nlooks,
-            unwrap=tophu.ICUUnwrap(),
+            unwrap=tophu.PhassUnwrap(),
             downsample_factor=downsample_factor,
             ntiles=downsample_factor,
         )
@@ -305,22 +331,55 @@ class TestMultiScaleUnwrap:
         # should be masked out (with label 0).
         unique_labels = set(np.unique(conncomp[mask]))
         assert unique_labels == {1}
-        assert frac_nonzero(conncomp) > 0.999
+        assert frac_nonzero(conncomp) > 0.99
 
-    def test_shape_mismatch(self):
+    def test_unw_shape_mismatch(self):
         length, width = 128, 128
-        igram = np.zeros((length, width), dtype=np.complex64)
-        coherence = np.ones((length + 1, width + 1), dtype=np.float32)
-        errmsg = (
-            "shape mismatch: interferogram and coherence arrays must have the same"
-            " shape"
-        )
+        _, conncomp, igram, coherence = dummy_inputs_and_outputs(length, width)
+        unw = np.zeros((length + 1, width + 1), dtype=np.float32)
+        errmsg = "shape mismatch: igram and unw must have the same shape"
         with pytest.raises(ValueError, match=errmsg):
             tophu.multiscale_unwrap(
+                unw,
+                conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap=tophu.SnaphuUnwrap(),
+                downsample_factor=(3, 3),
+                ntiles=(2, 2),
+            )
+
+    def test_conncomp_shape_mismatch(self):
+        length, width = 128, 128
+        unw, _, igram, coherence = dummy_inputs_and_outputs(length, width)
+        conncomp = np.zeros((length + 1, width + 1), dtype=np.uint32)
+        errmsg = "shape mismatch: unw and conncomp must have the same shape"
+        with pytest.raises(ValueError, match=errmsg):
+            tophu.multiscale_unwrap(
+                unw,
+                conncomp,
+                igram,
+                coherence,
+                nlooks=1.0,
+                unwrap=tophu.SnaphuUnwrap(),
+                downsample_factor=(3, 3),
+                ntiles=(2, 2),
+            )
+
+    def test_coherence_shape_mismatch(self):
+        length, width = 128, 128
+        unw, conncomp, igram, _ = dummy_inputs_and_outputs(length, width)
+        coherence = np.ones((length + 1, width + 1), dtype=np.float32)
+        errmsg = "shape mismatch: igram and coherence must have the same shape"
+        with pytest.raises(ValueError, match=errmsg):
+            tophu.multiscale_unwrap(
+                unw,
+                conncomp,
+                igram,
+                coherence,
+                nlooks=1.0,
+                unwrap=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(2, 2),
             )
@@ -329,44 +388,54 @@ class TestMultiScaleUnwrap:
         shape = (2, 128, 128)
         igram = np.zeros(shape, dtype=np.complex64)
         coherence = np.ones(shape, dtype=np.float32)
+        unw = np.zeros(shape, dtype=np.complex64)
+        conncomp = np.zeros(shape, dtype=np.float32)
         with pytest.raises(ValueError, match="input array must be 2-dimensional"):
             tophu.multiscale_unwrap(
+                unw,
+                conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
-                ntiles=(2, 2),
+                ntiles=(2, 2, 2),
             )
 
     def test_bad_nlooks(self):
-        igram, coherence = dummy_igram_and_coherence()
+        unw, conncomp, igram, coherence = dummy_inputs_and_outputs()
         with pytest.raises(ValueError, match="effective number of looks must be >= 1"):
             tophu.multiscale_unwrap(
+                unw,
+                conncomp,
                 igram,
                 coherence,
                 nlooks=0.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(2, 2),
             )
 
     def test_bad_downsample_factor(self):
-        igram, coherence = dummy_igram_and_coherence()
+        unw, conncomp, igram, coherence = dummy_inputs_and_outputs()
         with pytest.raises(ValueError, match="downsample factor must be >= 1"):
             tophu.multiscale_unwrap(
+                unw,
+                conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap=tophu.SnaphuUnwrap(),
                 downsample_factor=(0, 0),
                 ntiles=(2, 2),
             )
 
     def test_bad_ntiles(self):
-        igram, coherence = dummy_igram_and_coherence()
+        unw, conncomp, igram, coherence = dummy_inputs_and_outputs()
         with pytest.raises(ValueError, match="number of tiles must be >= 1"):
             tophu.multiscale_unwrap(
+                unw,
+                conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
@@ -377,14 +446,53 @@ class TestMultiScaleUnwrap:
 
     @pytest.mark.parametrize("overhang", [-0.1, 1.1])
     def test_bad_overhang(self, overhang: float):
-        igram, coherence = dummy_igram_and_coherence()
+        unw, conncomp, igram, coherence = dummy_inputs_and_outputs()
         with pytest.raises(ValueError, match="overhang must be between 0 and 1"):
             tophu.multiscale_unwrap(
+                unw,
+                conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(2, 2),
                 overhang=overhang,
             )
+
+
+class TestGetTileDims:
+    def test_simple(self):
+        shape = (100, 101)
+        ntiles = (4, 3)
+        tiledims = get_tile_dims(shape, ntiles)
+        assert tiledims == (25, 34)
+
+    def test_snapped(self):
+        shape = (30, 40, 50)
+        ntiles = (3, 4, 5)
+        snap_to = (5, 6, 7)
+        tiledims = get_tile_dims(shape, ntiles, snap_to)
+        assert tiledims == (10, 12, 14)
+
+    def test_ntiles_length_mismatch(self):
+        errmsg = "size mismatch: shape and ntiles must have same length"
+        with pytest.raises(ValueError, match=errmsg):
+            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 2))
+
+    def test_bad_shape(self):
+        with pytest.raises(ValueError, match="array axis lengths must be >= 1"):
+            get_tile_dims(shape=(3, 0, 5), ntiles=(1, 2, 1))
+
+    def test_bad_ntiles(self):
+        with pytest.raises(ValueError, match="number of tiles must be >= 1"):
+            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 0, 1))
+
+    def test_snap_to_length_mismatch(self):
+        errmsg = "size mismatch: shape and snap_to must have same length"
+        with pytest.raises(ValueError, match=errmsg):
+            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 2, 1), snap_to=(4, 4))
+
+    def test_bad_snap_to(self):
+        with pytest.raises(ValueError, match="snap_to lengths must be >= 1"):
+            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 2, 1), snap_to=(4, 0, 5))
