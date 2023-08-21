@@ -31,7 +31,7 @@ def lowpass_filter_and_multilook(
     Apply an anti-aliasing pre-filter, then multilook.
 
     The input array is filtered by applying a low-pass filter constructed using the
-    optimal equiripple method\ :footcite:p:`mcclellan:1973` and then multilooked to
+    optimal equiripple method\ :footcite:p:`mcclellan1973` and then multilooked to
     produce the downsampled output. However, if the number of looks along any axis is 1,
     no filtering will be applied along that axis of the array.
 

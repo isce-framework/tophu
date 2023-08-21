@@ -63,7 +63,7 @@ class SnaphuUnwrap(UnwrapCallback):
     r"""
     Callback functor for unwrapping using SNAPHU.
 
-    Performs unwrapping using the SNAPHU algorithm\ :footcite:p:`chen:2001`.
+    Performs unwrapping using the SNAPHU algorithm\ :footcite:p:`chen2001`.
     """
 
     cost: str
