@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import warnings
-from typing import Iterable, SupportsInt, Tuple, Union, cast
+from collections.abc import Iterable
+from typing import Tuple, cast
 
 import dask.array as da
 import numpy as np
@@ -11,10 +14,7 @@ __all__ = [
 ]
 
 
-IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
-
-
-def multilook(arr: da.Array, nlooks: IntOrInts) -> da.Array:
+def multilook(arr: da.Array, nlooks: int | Iterable[int]) -> da.Array:
     """
     Multilook an array by simple averaging.
 

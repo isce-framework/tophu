@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import multiprocessing
 import threading
 from multiprocessing.pool import ThreadPool
-from typing import Tuple
 
 import dask
 import dask.array as da
@@ -114,8 +115,8 @@ def test_iseven():
 def random_integer_array(
     low: int = 0,
     high: int = 100,
-    shape: Tuple[int, ...] = (1024, 1024),
-    chunks: Tuple[int, ...] = (128, 128),
+    shape: tuple[int, ...] = (1024, 1024),
+    chunks: tuple[int, ...] = (128, 128),
 ) -> da.Array:
     return da.random.randint(low, high, size=shape, chunks=chunks)
 

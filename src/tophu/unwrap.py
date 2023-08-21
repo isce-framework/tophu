@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import dataclasses
 import warnings
 from os import PathLike
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Literal, Optional, Protocol, Tuple, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable
 
 import isce3
 import numpy as np
@@ -34,7 +36,7 @@ class UnwrapCallback(Protocol):
         igram: NDArray[np.complexfloating],
         corrcoef: NDArray[np.floating],
         nlooks: float,
-    ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
+    ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         """
         Perform two-dimensional phase unwrapping.
 
@@ -69,7 +71,7 @@ class SnaphuUnwrap(UnwrapCallback):
     cost: str
     """str : Statistical cost mode."""
 
-    cost_params: Optional[isce3.unwrap.snaphu.CostParams]
+    cost_params: isce3.unwrap.snaphu.CostParams | None
     """
     isce3.unwrap.snaphu.CostParams or None : Configuration parameters for the
     specified cost mode.
@@ -81,7 +83,7 @@ class SnaphuUnwrap(UnwrapCallback):
     def __init__(
         self,
         cost: Literal["topo", "defo", "smooth", "p-norm"] = "smooth",
-        cost_params: Optional[isce3.unwrap.snaphu.CostParams] = None,
+        cost_params: isce3.unwrap.snaphu.CostParams | None = None,
         init_method: Literal["mst", "mcf"] = "mcf",
     ):
         """
@@ -110,7 +112,7 @@ class SnaphuUnwrap(UnwrapCallback):
         igram: NDArray[np.complexfloating],
         corrcoef: NDArray[np.floating],
         nlooks: float,
-    ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
+    ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         # Convert input arrays to GDAL rasters with the expected datatypes.
         igram_data = np.asanyarray(igram, dtype=np.complex64)
         igram = isce3.io.gdal.Raster(igram_data)
@@ -394,7 +396,7 @@ class ICUUnwrap(UnwrapCallback):
         igram: NDArray[np.complexfloating],
         corrcoef: NDArray[np.floating],
         nlooks: float,
-    ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
+    ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         # Configure ICU to unwrap the interferogram as a single tile (no bootstrapping).
         icu = isce3.unwrap.ICU(
             buffer_lines=len(igram),
@@ -488,7 +490,7 @@ class PhassUnwrap(UnwrapCallback):
         igram: NDArray[np.complexfloating],
         corrcoef: NDArray[np.floating],
         nlooks: float,
-    ) -> Tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
+    ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         # Configure ICU to unwrap the interferogram as a single tile (no bootstrapping).
         phass = isce3.unwrap.Phass(
             correlation_threshold=self.coherence_thresh,

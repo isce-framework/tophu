@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional, Tuple
 
 import dask.array as da
 import numpy as np
@@ -20,7 +21,7 @@ __all__ = [
 
 def lowpass_filter_and_multilook(
     arr: da.Array,
-    downsample_factor: Tuple[int, int],
+    downsample_factor: tuple[int, int],
     *,
     shape_factor: float = 1.5,
     overhang: float = 0.5,
@@ -204,14 +205,14 @@ def coarse_unwrap(
     coherence: da.Array,
     nlooks: float,
     unwrap: UnwrapCallback,
-    downsample_factor: Tuple[int, int],
+    downsample_factor: tuple[int, int],
     *,
     do_lowpass_filter: bool = True,
     shape_factor: float = 1.5,
     overhang: float = 0.5,
     ripple: float = 0.01,
     attenuation: float = 40.0,
-) -> Tuple[da.Array, da.Array]:
+) -> tuple[da.Array, da.Array]:
     """
     Estimate coarse unwrapped phase by unwrapping a downsampled interferogram.
 
@@ -429,14 +430,14 @@ def _multiscale_unwrap(
     coherence: da.Array,
     nlooks: float,
     unwrap: UnwrapCallback,
-    downsample_factor: Tuple[int, int],
+    downsample_factor: tuple[int, int],
     *,
     do_lowpass_filter: bool = True,
     shape_factor: float = 1.5,
     overhang: float = 0.5,
     ripple: float = 0.01,
     attenuation: float = 40.0,
-) -> Tuple[da.Array, da.Array]:
+) -> tuple[da.Array, da.Array]:
     """
     Perform 2-D phase unwrapping using a multi-resolution approach.
 
@@ -557,10 +558,10 @@ def _multiscale_unwrap(
 
 
 def get_tile_dims(
-    shape: Tuple[int, ...],
-    ntiles: Tuple[int, ...],
-    snap_to: Optional[Tuple[int, ...]] = None,
-) -> Tuple[int, ...]:
+    shape: tuple[int, ...],
+    ntiles: tuple[int, ...],
+    snap_to: tuple[int, ...] | None = None,
+) -> tuple[int, ...]:
     """
     Get tile dimensions of an array partitioned into tiles.
 
@@ -622,8 +623,8 @@ def multiscale_unwrap(
     coherence: DatasetReader,
     nlooks: float,
     unwrap: UnwrapCallback,
-    downsample_factor: Tuple[int, int],
-    ntiles: Tuple[int, int],
+    downsample_factor: tuple[int, int],
+    ntiles: tuple[int, int],
     *,
     do_lowpass_filter: bool = True,
     shape_factor: float = 1.5,
