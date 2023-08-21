@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Iterable
-from typing import cast
+from typing import Tuple, cast
 
 import dask.array as da
 import numpy as np
@@ -53,7 +53,7 @@ def multilook(arr: da.Array, nlooks: int | Iterable[int]) -> da.Array:
             )
 
     # Convince static type checkers that `nlooks` is a tuple of ints now.
-    nlooks = cast(tuple[int, ...], nlooks)
+    nlooks = cast(Tuple[int, ...], nlooks)
 
     # The number of looks must be at least 1 and at most the size of the input array
     # along the corresponding axis.
