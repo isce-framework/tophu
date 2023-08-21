@@ -1,4 +1,4 @@
-from typing import Optional
+from __future__ import annotations
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -13,7 +13,7 @@ def simulate_phase_noise(
     corrcoef: ArrayLike,
     nlooks: float,
     *,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> NDArray:
     r"""Simulate multilooked interferogram phase noise samples.
 
@@ -60,7 +60,7 @@ def simulate_terrain(
     *,
     scale: float = 1000.0,
     smoothness: float = 0.8,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> NDArray:
     r"""Simulate topography using the Diamond-Square algorithm.
 

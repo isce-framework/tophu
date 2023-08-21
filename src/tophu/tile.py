@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import itertools
-from typing import Iterable, Iterator, Optional, SupportsInt, Tuple, Union
+from collections.abc import Iterable, Iterator
 
 import numpy as np
 
@@ -8,10 +10,6 @@ from . import util
 __all__ = [
     "TiledPartition",
 ]
-
-
-IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
-NDSlice = Tuple[slice, ...]
 
 
 class TiledPartition:
@@ -31,10 +29,10 @@ class TiledPartition:
 
     def __init__(
         self,
-        shape: IntOrInts,
-        ntiles: IntOrInts,
-        overlap: Optional[IntOrInts] = None,
-        snap_to: Optional[IntOrInts] = None,
+        shape: int | Iterable[int],
+        ntiles: int | Iterable[int],
+        overlap: int | Iterable[int] | None = None,
+        snap_to: int | Iterable[int] | None = None,
     ):
         """
         Construct a new `TiledPartition` object.
@@ -111,12 +109,12 @@ class TiledPartition:
         self._tiledims = tiledims
 
     @property
-    def ntiles(self) -> Tuple[int, ...]:
+    def ntiles(self) -> tuple[int, ...]:
         """tuple of int : Number of tiles along each array axis."""
         return self._ntiles
 
     @property
-    def tiledims(self) -> Tuple[int, ...]:
+    def tiledims(self) -> tuple[int, ...]:
         """
         tuple of int : Shape of a typical tile. The last tile along each axis may be
         smaller.
@@ -124,7 +122,7 @@ class TiledPartition:
         return tuple(self._tiledims)
 
     @property
-    def strides(self) -> Tuple[int, ...]:
+    def strides(self) -> tuple[int, ...]:
         """
         tuple of int : Step size between the start of adjacent tiles along each
         axis.
@@ -132,11 +130,11 @@ class TiledPartition:
         return tuple(self._strides)
 
     @property
-    def overlap(self) -> Tuple[int, ...]:
+    def overlap(self) -> tuple[int, ...]:
         """tuple of int : Overlap between adjacent tiles along each axis."""
         return tuple(self._tiledims - self._strides)
 
-    def __getitem__(self, index: IntOrInts) -> NDSlice:
+    def __getitem__(self, index: int | Iterable[int]) -> tuple[slice, ...]:
         """
         Access a tile.
 
@@ -171,7 +169,7 @@ class TiledPartition:
 
         return tuple([slice(a, b) for (a, b) in zip(start, stop)])
 
-    def __iter__(self) -> Iterator[NDSlice]:
+    def __iter__(self) -> Iterator[tuple[slice, ...]]:
         """
         Iterate over tiles in arbitrary order.
 

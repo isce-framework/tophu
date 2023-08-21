@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import itertools
-from typing import Iterable, SupportsInt, Tuple, Union
+from collections.abc import Iterable
 
 import dask.array as da
 import numpy as np
@@ -14,10 +16,7 @@ __all__ = [
 ]
 
 
-IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
-
-
-def as_tuple_of_int(ints: IntOrInts) -> Tuple[int, ...]:
+def as_tuple_of_int(ints: int | Iterable[int]) -> tuple[int, ...]:
     """
     Convert the input to a tuple of ints.
 
@@ -38,8 +37,8 @@ def as_tuple_of_int(ints: IntOrInts) -> Tuple[int, ...]:
 
 
 def validate_upsample_output_shape(
-    in_shape: Tuple[int, ...],
-    out_shape: Tuple[int, ...],
+    in_shape: tuple[int, ...],
+    out_shape: tuple[int, ...],
 ) -> None:
     """
     Check that `out_shape` is a valid upsampled output shape.
@@ -70,7 +69,7 @@ def validate_upsample_output_shape(
         raise ValueError("output shape must be >= input data shape")
 
 
-def upsample_fft(data: ArrayLike, out_shape: IntOrInts) -> NDArray:
+def upsample_fft(data: ArrayLike, out_shape: int | Iterable[int]) -> NDArray:
     """
     Upsample using a Fast Fourier Transform (FFT)-based interpolation method.
 
@@ -183,7 +182,7 @@ def upsample_fft(data: ArrayLike, out_shape: IntOrInts) -> NDArray:
 
 def pad_to_shape(
     arr: da.Array,
-    out_shape: Tuple[int, ...],
+    out_shape: tuple[int, ...],
     mode: str = "constant",
 ) -> da.Array:
     """
@@ -223,7 +222,7 @@ def pad_to_shape(
     return da.pad(arr, list(zip(zeros, padding)), mode=mode)
 
 
-def upsample_nearest(data: da.Array, out_shape: IntOrInts) -> da.Array:
+def upsample_nearest(data: da.Array, out_shape: int | Iterable[int]) -> da.Array:
     """
     Upsample an array using nearest neighbor interpolation.
 

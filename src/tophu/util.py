@@ -1,4 +1,6 @@
-from typing import Iterable, SupportsInt, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Iterable
 
 import dask.array as da
 import numpy as np
@@ -15,10 +17,7 @@ __all__ = [
 ]
 
 
-IntOrInts = Union[SupportsInt, Iterable[SupportsInt]]
-
-
-def as_tuple_of_int(ints: IntOrInts) -> Tuple[int, ...]:
+def as_tuple_of_int(ints: int | Iterable[int]) -> tuple[int, ...]:
     """
     Convert the input to a tuple of ints.
 
@@ -85,7 +84,7 @@ def iseven(n: int) -> bool:
     return n % 2 == 0
 
 
-def map_blocks(func, *args, **kwargs) -> Union[da.Array, Tuple[da.Array, ...]]:
+def map_blocks(func, *args, **kwargs) -> da.Array | tuple[da.Array, ...]:
     """
     Map a function across all blocks of a dask array.
 

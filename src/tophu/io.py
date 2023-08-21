@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import mmap
 import os
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Protocol, Tuple, Union, overload, runtime_checkable
+from typing import Protocol, overload, runtime_checkable
 
 import h5py
 import numpy as np
@@ -39,13 +41,13 @@ class DatasetReader(Protocol):
     dtype: np.dtype
     """numpy.dtype : Data-type of the array's elements."""
 
-    shape: Tuple[int, ...]
+    shape: tuple[int, ...]
     """tuple of int : Tuple of array dimensions."""
 
     ndim: int
     """int : Number of array dimensions."""
 
-    def __getitem__(self, key: Tuple[slice, ...], /) -> ArrayLike:
+    def __getitem__(self, key: tuple[slice, ...], /) -> ArrayLike:
         """Read a block of data."""
         ...
 
@@ -68,18 +70,18 @@ class DatasetWriter(Protocol):
     dtype: np.dtype
     """numpy.dtype : Data-type of the array's elements."""
 
-    shape: Tuple[int, ...]
+    shape: tuple[int, ...]
     """tuple of int : Tuple of array dimensions."""
 
     ndim: int
     """int : Number of array dimensions."""
 
-    def __setitem__(self, key: Tuple[slice, ...], value: np.ndarray, /) -> None:
+    def __setitem__(self, key: tuple[slice, ...], value: np.ndarray, /) -> None:
         """Write a block of data."""
         ...
 
 
-def _create_or_extend_file(filepath: Union[str, os.PathLike], size: int) -> None:
+def _create_or_extend_file(filepath: str | os.PathLike, size: int) -> None:
     """
     Create a file with the specified size or extend an existing file to the same size.
 
@@ -126,13 +128,13 @@ class BinaryFile(DatasetReader, DatasetWriter):
     filepath: Path
     """pathlib.Path : The file path."""
 
-    shape: Tuple[int, ...]
+    shape: tuple[int, ...]
     dtype: np.dtype
 
     def __init__(
         self,
-        filepath: Union[str, os.PathLike],
-        shape: Tuple[int, ...],
+        filepath: str | os.PathLike,
+        shape: tuple[int, ...],
         dtype: DTypeLike,
     ):
         """
@@ -175,7 +177,7 @@ class BinaryFile(DatasetReader, DatasetWriter):
     def __array__(self) -> np.ndarray:
         return self[:,]
 
-    def __getitem__(self, key: Tuple[slice, ...], /) -> np.ndarray:
+    def __getitem__(self, key: tuple[slice, ...], /) -> np.ndarray:
         with self.filepath.open("rb") as f:
             # Memory-map the entire file.
             with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
@@ -187,7 +189,7 @@ class BinaryFile(DatasetReader, DatasetWriter):
                 del arr
             return data
 
-    def __setitem__(self, key: Tuple[slice, ...], value: np.ndarray, /) -> None:
+    def __setitem__(self, key: tuple[slice, ...], value: np.ndarray, /) -> None:
         with self.filepath.open("r+b") as f:
             # Memory-map the entire file.
             with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_WRITE) as mm:
@@ -224,16 +226,16 @@ class HDF5Dataset(DatasetReader, DatasetWriter):
     datapath: str
     """str : The path to the dataset within the file."""
 
-    chunks: Optional[Tuple[int, ...]]
+    chunks: tuple[int, ...] | None
     """
     tuple of int : Tuple giving the chunk shape, or None if chunked storage is not used.
     """
 
-    shape: Tuple[int, ...]
+    shape: tuple[int, ...]
     dtype: np.dtype
 
     @overload
-    def __init__(self, filepath: Union[str, os.PathLike], datapath: str):  # noqa: D418
+    def __init__(self, filepath: str | os.PathLike, datapath: str):  # noqa: D418
         """
         Construct a new `HDF5Dataset` object from an existing dataset.
 
@@ -249,9 +251,9 @@ class HDF5Dataset(DatasetReader, DatasetWriter):
     @overload
     def __init__(
         self,
-        filepath: Union[str, os.PathLike],
+        filepath: str | os.PathLike,
         datapath: str,
-        shape: Tuple[int, ...],
+        shape: tuple[int, ...],
         dtype: DTypeLike,
         **kwargs,
     ):  # noqa: D418
@@ -340,19 +342,19 @@ class HDF5Dataset(DatasetReader, DatasetWriter):
     def __array__(self) -> np.ndarray:
         return self[:,]
 
-    def __getitem__(self, key: Tuple[slice, ...], /) -> np.ndarray:
+    def __getitem__(self, key: tuple[slice, ...], /) -> np.ndarray:
         with h5py.File(self.filepath, "r") as f:
             dataset = f[self.datapath]
             return dataset[key]
 
-    def __setitem__(self, key: Tuple[slice, ...], value: np.ndarray, /) -> None:
+    def __setitem__(self, key: tuple[slice, ...], value: np.ndarray, /) -> None:
         with h5py.File(self.filepath, "r+") as f:
             dataset = f[self.datapath]
             dataset[key] = value
 
 
 def _check_contains_single_band(
-    dataset: Union[rasterio.io.DatasetReader, rasterio.io.DatasetWriter]
+    dataset: rasterio.io.DatasetReader | rasterio.io.DatasetWriter,
 ) -> None:
     """
     Validate that the supplied dataset contains a single raster band.
@@ -374,7 +376,7 @@ def _check_contains_single_band(
 
 
 def _check_valid_band(
-    dataset: Union[rasterio.io.DatasetReader, rasterio.io.DatasetWriter],
+    dataset: rasterio.io.DatasetReader | rasterio.io.DatasetWriter,
     band: int,
 ) -> None:
     """
@@ -438,7 +440,7 @@ class RasterBand(DatasetReader, DatasetWriter):
     coordinate reference system.
     """
 
-    shape: Tuple[int, int]
+    shape: tuple[int, int]
     dtype: np.dtype
 
     # TODO: `chunks` & `nodata` attributes
@@ -446,10 +448,10 @@ class RasterBand(DatasetReader, DatasetWriter):
     @overload
     def __init__(
         self,
-        filepath: Union[str, os.PathLike],
+        filepath: str | os.PathLike,
         *,
-        band: Optional[int] = None,
-        driver: Optional[str] = None,
+        band: int | None = None,
+        driver: str | None = None,
     ):  # noqa: D418
         """
         Construct a new `RasterBand` object.
@@ -470,14 +472,14 @@ class RasterBand(DatasetReader, DatasetWriter):
     @overload
     def __init__(
         self,
-        filepath: Union[str, os.PathLike],
+        filepath: str | os.PathLike,
         width: int,
         height: int,
         dtype: DTypeLike,
         *,
-        driver: Optional[str] = None,
-        crs: Optional[Union[str, dict, rasterio.crs.CRS]] = None,
-        transform: Optional[rasterio.transform.Affine] = None,
+        driver: str | None = None,
+        crs: str | dict | rasterio.crs.CRS | None = None,
+        transform: rasterio.transform.Affine | None = None,
     ):  # noqa: D418
         """
         Construct a new `RasterBand` object.
@@ -595,7 +597,7 @@ class RasterBand(DatasetReader, DatasetWriter):
     def __array__(self) -> np.ndarray:
         return self[:, :]
 
-    def __getitem__(self, key: Tuple[slice, ...], /) -> np.ndarray:
+    def __getitem__(self, key: tuple[slice, ...], /) -> np.ndarray:
         with rasterio.io.DatasetReader(
             self.filepath,
             driver=self.driver,
@@ -607,7 +609,7 @@ class RasterBand(DatasetReader, DatasetWriter):
             )
             return dataset.read(self.band, window=window)
 
-    def __setitem__(self, key: Tuple[slice, ...], value: np.ndarray, /) -> None:
+    def __setitem__(self, key: tuple[slice, ...], value: np.ndarray, /) -> None:
         with rasterio.io.DatasetWriter(
             self.filepath,
             "r+",

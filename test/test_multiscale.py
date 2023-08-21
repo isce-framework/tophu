@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from __future__ import annotations
 
 import numpy as np
 import pytest
@@ -10,7 +10,7 @@ from tophu.unwrap import UnwrapCallback
 
 from .simulate import simulate_phase_noise, simulate_terrain
 
-UNWRAP_FUNCS: List[UnwrapCallback] = [
+UNWRAP_FUNCS: list[UnwrapCallback] = [
     # tophu.ICUUnwrap(),
     tophu.PhassUnwrap(),
     tophu.SnaphuUnwrap(),
@@ -20,7 +20,7 @@ UNWRAP_FUNCS: List[UnwrapCallback] = [
 def dummy_inputs_and_outputs(
     length: int = 128,
     width: int = 128,
-) -> Tuple[
+) -> tuple[
     NDArray[np.floating],
     NDArray[np.unsignedinteger],
     NDArray[np.complexfloating],
@@ -157,7 +157,7 @@ class TestMultiScaleUnwrap:
     @pytest.mark.parametrize("unwrap", UNWRAP_FUNCS)
     def test_multiscale_unwrap_phase_conncomps(
         self,
-        downsample_factor: Tuple[int, int],
+        downsample_factor: tuple[int, int],
         unwrap: UnwrapCallback,
     ):
         length, width = 512, 512
@@ -255,7 +255,7 @@ class TestMultiScaleUnwrap:
         assert jaccard_similarity(valid_mask, expected_mask) > 0.975
 
     @pytest.mark.parametrize("downsample_factor", [(1, 1), (1, 4), (5, 1)])
-    def test_multiscale_unwrap_single_look(self, downsample_factor: Tuple[int, int]):
+    def test_multiscale_unwrap_single_look(self, downsample_factor: tuple[int, int]):
         length, width = map(lambda d: 256 * d, downsample_factor)
 
         # Radar sensor/geometry parameters.
