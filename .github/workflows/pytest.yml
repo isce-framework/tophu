@@ -17,7 +17,7 @@ jobs:
           - label: Latest
             spec: ""
           - label: Minimum
-            spec: |
+            spec: >-
               dask=2022.05.1
               h5py=3
               isce3=0.12
@@ -35,12 +35,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Setup environment
-        uses: mamba-org/provision-with-micromamba@main
+        uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: requirements.txt
           environment-name: tophu
-          extra-specs: ${{ matrix.deps.spec }}
-          channels: conda-forge
+          create-args: ${{ matrix.deps.spec }}
+          condarc: |
+            channels:
+              - conda-forge
+              - nodefaults
       - name: Install
         run: |
           pip install --no-deps .
