@@ -14,7 +14,9 @@ All rights reserved.
 
 ## License
 
-This software is licensed under your choice of BSD-3-Clause or Apache-2.0 licenses. See
-the accompanying [LICENSE](LICENSE) file for further details.
+This software is licensed under your choice of BSD-3-Clause or Apache-2.0 licenses. The
+exact terms of each license can be found in the accompanying
+[LICENSE-BSD-3-Clause](LICENSE-BSD-3-Clause) and
+[LICENSE-Apache-2.0](LICENSE-Apache-2.0) files, respectively.
 
 SPDX-License-Identifier: BSD-3-Clause OR Apache-2.0
