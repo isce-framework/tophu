@@ -13,7 +13,7 @@ def equiripple_filter_order_kaiser(ptol: float, stol: float, width: float) -> in
 
     Predicts the order of a finite impulse response (FIR) digital filter obtained from
     the optimal equiripple approximation method using Kaiser's formula\
-    :footcite:p:`kaiser:1974`.
+    :footcite:p:`kaiser1974`.
 
     Evaluates
 
@@ -66,7 +66,7 @@ def bandpass_equiripple_filter(
 
     Form a linear-phase finite impulse response (FIR) discrete-time digital filter wth
     desired passband, stopband, and attenuation characteristics using the
-    Parks-McClellan algorithm\ :footcite:p:`mcclellan:1973`. The algorithm produces a
+    Parks-McClellan algorithm\ :footcite:p:`mcclellan1973`. The algorithm produces a
     filter that is optimal in the sense that it minimizes the maximum weighted deviation
     from the ideal frequency response in the passband and stopband.
 

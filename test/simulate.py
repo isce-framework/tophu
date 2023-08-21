@@ -22,9 +22,9 @@ def simulate_phase_noise(
 
     The resulting samples are zero-mean Gaussian distributed, with variance equal to the
     Cramer-Rao bound of the Maximum Likelihood Estimator for the interferometric
-    phase\ :footcite:p:`rodriguez:1992`. This simple approximation is most accurate for
+    phase\ :footcite:p:`rodriguez1992`. This simple approximation is most accurate for
     high coherence and large number of looks. The true phase difference distribution is
-    more complicated\ :footcite:p:`lee:1994`.
+    more complicated\ :footcite:p:`lee1994`.
 
     Parameters
     ----------
@@ -65,7 +65,7 @@ def simulate_terrain(
     r"""Simulate topography using the Diamond-Square algorithm.
 
     Generate a 2-D fractal height map using the Diamond-Square algorithm\
-    :footcite:p:`miller:1986`.
+    :footcite:p:`miller1986`.
 
     Parameters
     ----------
