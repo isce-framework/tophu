@@ -198,8 +198,8 @@ def pad_to_shape(
     out_shape : tuple of int
         The shape of the output array after padding.
     mode : str or callable, optional
-        The padding mode. See `dask.array.pad()` for a list of possible modes.
-        (default: 'constant')
+        The padding mode. See `dask.array.pad()` for a list of possible modes. Defaults
+        to 'constant'.
 
     Returns
     -------

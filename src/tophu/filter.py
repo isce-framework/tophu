@@ -87,16 +87,16 @@ def bandpass_equiripple_filter(
         Stopband attenuation -- the difference in amplitude, in decibels, between the
         ideal gain in the passband and the highest gain in the stopband.
     centerfreq : float, optional
-        Center frequency of the passband, in the same units as `samplerate`.
-        (default: 0)
+        Center frequency of the passband, in the same units as `samplerate`. Defaults to
+        0.
     samplerate : float, optional
-        Sampling frequency of the signal. (default: 1)
+        Sampling frequency of the signal. Defaults to 1.
     force_odd_length : bool, optional
-        Whether to force the filter length to be odd-valued. (default: False)
+        Whether to force the filter length to be odd-valued. Defaults to False.
     maxiter : int, optional
-        Maximum number of iterations of the algorithm. (default: 25)
+        Maximum number of iterations of the algorithm. Defaults to 25.
     grid_density : int, optional
-        Density of Lagrange interpolation points used in the algorithm. (default: 16)
+        Density of Lagrange interpolation points used in the algorithm. Defaults to 16.
 
     Returns
     -------

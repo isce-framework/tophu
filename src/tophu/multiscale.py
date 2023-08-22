@@ -46,19 +46,20 @@ def lowpass_filter_and_multilook(
         The shape factor of the filter (the ratio of the width of the combined
         pass-band and transition band to the pass-band width). Must be greater than or
         equal to 1. A larger shape factor results in a more gradual filter roll-off.
-        (default: 1.5)
+        Defaults to 1.5.
     overhang : float, optional
         The fraction of the low-pass filter transition bandwidth that extends beyond the
         Nyquist frequency of the resulting multilooked data. For example, if
         `overhang=0`, the transition band will be entirely within the Nyquist bandwidth.
         If `overhang=0.5`, the transition band will centered on the Nyquist frequency.
-        The value must be within the interval [0, 1]. (default: 0.5)
+        The value must be within the interval [0, 1]. Defaults to 0.5.
     ripple : float, optional
         The maximum allowed ripple amplitude below unity gain in the pass-band, in
-        decibels. (default: 0.01)
+        decibels. Defaults to 0.01.
     attenuation : float, optional
         The stop-band attenuation (the difference in amplitude between the ideal gain in
-        the pass-band and the highest gain in the stop-band), in decibels. (default: 40)
+        the pass-band and the highest gain in the stop-band), in decibels. Defaults to
+        40.
 
     Returns
     -------
@@ -240,26 +241,26 @@ def coarse_unwrap(
         interferogram.
     do_lowpass_filter : bool, optional
         If True, apply a low-pass pre-filter prior to multilooking in order to reduce
-        aliasing effects. (default: True)
+        aliasing effects. Defaults to True.
     shape_factor : float, optional
         The shape factor of the filter (the ratio of the width of the combined
         pass-band and transition band to the pass-band width). Must be greater than or
         equal to 1. A larger shape factor results in a more gradual filter roll-off.
-        Ignored if `do_lowpass_filter` is False. (default: 1.5)
+        Ignored if `do_lowpass_filter` is False. Defaults to 1.5.
     overhang : float, optional
         The fraction of the low-pass filter transition bandwidth that extends beyond the
         Nyquist frequency of the resulting multilooked data. For example, if
         `overhang=0`, the transition band will be entirely within the Nyquist bandwidth.
         If `overhang=0.5`, the transition band will centered on the Nyquist frequency.
         The value must be within the interval [0, 1]. Ignored if `do_lowpass_filter` is
-        False. (default: 0.5)
+        False. Defaults to 0.5.
     ripple : float, optional
         The maximum allowed ripple amplitude below unity gain in the pass-band, in
-        decibels. Ignored if `do_lowpass_filter` is False. (default: 0.01)
+        decibels. Ignored if `do_lowpass_filter` is False. Defaults to 0.01.
     attenuation : float, optional
         The stop-band attenuation (the difference in amplitude between the ideal gain in
         the pass-band and the highest gain in the stop-band), in decibels. Ignored if
-        `do_lowpass_filter` is False. (default: 40)
+        `do_lowpass_filter` is False. Defaults to 40.
 
     Returns
     -------
@@ -465,27 +466,27 @@ def _multiscale_unwrap(
         interferogram.
     do_lowpass_filter : bool, optional
         If True, apply a low-pass pre-filter prior to multilooking in order to reduce
-        aliasing effects. (default: True)
+        aliasing effects. Defaults to True.
     shape_factor : float, optional
         The shape factor of the anti-aliasing low-pass filter applied prior to
         multilooking (the ratio of the width of the combined pass-band and transition
         band to the pass-band width). A larger shape factor results in a more gradual
-        filter roll-off. Ignored if `do_lowpass_filter` is False. (default: 1.5)
+        filter roll-off. Ignored if `do_lowpass_filter` is False. Defaults to 1.5.
     overhang : float, optional
         The fraction of the low-pass filter transition bandwidth that extends beyond the
         Nyquist frequency of the resulting multilooked data. For example, if
         `overhang=0`, the transition band will be entirely within the Nyquist bandwidth.
         If `overhang=0.5`, the transition band will centered on the Nyquist frequency.
         The value must be within the interval [0, 1]. Ignored if `do_lowpass_filter` is
-        False. (default: 0.5)
+        False. Defaults to 0.5.
     ripple : float, optional
         The maximum allowed ripple amplitude below unity gain in the pass-band of the
-        pre-filter, in decibels. Ignored if `do_lowpass_filter` is False.
-        (default: 0.01)
+        pre-filter, in decibels. Ignored if `do_lowpass_filter` is False. Defaults to
+        0.01.
     attenuation : float, optional
         The stop-band attenuation of the pre-filter (the difference in amplitude between
         the ideal gain in the pass-band and the highest gain in the stop-band), in
-        decibels. Ignored if `do_lowpass_filter` is False. (default: 40)
+        decibels. Ignored if `do_lowpass_filter` is False. Defaults to 40.
 
     Returns
     -------
@@ -575,8 +576,8 @@ def get_tile_dims(
     ntiles : tuple of int
         Number of tiles along each array axis. Must be the same length as `shape`.
     snap_to : tuple of int or None, optional
-        If specified, force tile dimensions to be a multiple of this value.
-        (default: None)
+        If specified, force tile dimensions to be a multiple of this value. Defaults to
+        None.
 
     Returns
     -------
@@ -668,27 +669,27 @@ def multiscale_unwrap(
         the grid of tiles to partition the input interferogram into.
     do_lowpass_filter : bool, optional
         If True, apply a low-pass pre-filter prior to multilooking in order to reduce
-        aliasing effects. (default: True)
+        aliasing effects. Defaults to True.
     shape_factor : float, optional
         The shape factor of the anti-aliasing low-pass filter applied prior to
         multilooking (the ratio of the width of the combined pass-band and transition
         band to the pass-band width). A larger shape factor results in a more gradual
-        filter roll-off. Ignored if `do_lowpass_filter` is False. (default: 1.5)
+        filter roll-off. Ignored if `do_lowpass_filter` is False. Defaults to 1.5.
     overhang : float, optional
         The fraction of the low-pass filter transition bandwidth that extends beyond the
         Nyquist frequency of the resulting multilooked data. For example, if
         `overhang=0`, the transition band will be entirely within the Nyquist bandwidth.
         If `overhang=0.5`, the transition band will centered on the Nyquist frequency.
         The value must be within the interval [0, 1]. Ignored if `do_lowpass_filter` is
-        False. (default: 0.5)
+        False. Defaults to 0.5.
     ripple : float, optional
         The maximum allowed ripple amplitude below unity gain in the pass-band of the
         pre-filter, in decibels. Ignored if `do_lowpass_filter` is False.
-        (default: 0.01)
+        Defaults to 0.01.
     attenuation : float, optional
         The stop-band attenuation of the pre-filter (the difference in amplitude between
         the ideal gain in the pass-band and the highest gain in the stop-band), in
-        decibels. Ignored if `do_lowpass_filter` is False. (default: 40)
+        decibels. Ignored if `do_lowpass_filter` is False. Defaults to 40.
     """
     if unw.shape != igram.shape:
         raise ValueError("shape mismatch: igram and unw must have the same shape")

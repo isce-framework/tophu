@@ -462,10 +462,10 @@ class RasterBand(DatasetReader, DatasetWriter):
             Path of the local or remote dataset.
         band : int or None, optional
             The (1-based) band index of the raster band. Must be specified if the
-            dataset contains multiple bands. (default: None)
+            dataset contains multiple bands. Defaults to None.
         driver : str or or None, optional
             Raster format driver name. If None, registered drivers will be tried
-            sequentially until a match is found. (default: None)
+            sequentially until a match is found. Defaults to None.
         """
         ...
 
@@ -495,12 +495,12 @@ class RasterBand(DatasetReader, DatasetWriter):
             `numpy.dtype` object and must correspond to a valid GDAL datatype.
         driver : str or None, optional
             Raster format driver name. If None, the method will attempt to infer the
-            driver from the file extension. (default: None)
+            driver from the file extension. Defaults to None.
         crs : str, dict, or CRS; optional
-            The coordinate reference system. (default: None)
+            The coordinate reference system. Defaults to None.
         transform : Affine instance, optional
             Affine transformation mapping the pixel space to geographic space.
-            (default: None)
+            Defaults to None.
         """
         ...
 
