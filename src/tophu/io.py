@@ -273,7 +273,7 @@ class HDF5Dataset(DatasetReader, DatasetWriter):
         dtype : data-type
             Data-type of the array's elements. Must be convertible to a `numpy.dtype`
             object.
-        kwargs : dict
+        **kwargs : dict
             Additional dataset creation options. These keywords are ignored if a dataset
             is not created. See `h5py.Group.create_dataset()` for valid options.
         """

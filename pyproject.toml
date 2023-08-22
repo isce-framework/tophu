@@ -14,6 +14,25 @@ known_first_party = ["tophu"]
 python_version = "3.8"
 ignore_missing_imports = true
 
+[tool.numpydoc_validation]
+checks = [
+    "all",
+    "ES01",
+    "EX01",
+    "GL01",
+    "GL08",
+    "PR01",
+    "PR09",
+    "RT01",
+    "RT02",
+    "SA01",
+    "SA04",
+    "SS02",
+    "SS05",
+    "SS06",
+]
+exclude = ["test"]
+
 [tool.pydocstyle]
 ignore = "D100,D102,D104,D105,D203,D204,D212,D413"
 ignore-decorators="property"
