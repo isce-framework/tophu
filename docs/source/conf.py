@@ -44,20 +44,3 @@ copybutton_prompt_is_regexp = True
 napoleon_include_init_with_doc = True
 napoleon_use_admonition_for_notes = True
 napoleon_use_rtype = False
-
-# Extension configuration options: `numpydoc`.
-numpydoc_validation_checks = {
-    "all",
-    "ES01",
-    "EX01",
-    "GL01",
-    "GL08",
-    "PR01",
-    "PR09",
-    "RT02",
-    "SA01",
-    "SA04",
-    "SS02",
-    "SS05",
-    "SS06",
-}

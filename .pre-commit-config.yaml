@@ -38,6 +38,12 @@ repos:
     hooks:
       - id: mypy
 
+  - repo: https://github.com/numpy/numpydoc
+    # The latest stable release doesn't yet support pre-commit.
+    rev: "6e748efc6b90ff29ddfbc1334c2ac7197ad67858"
+    hooks:
+      - id: numpydoc-validation
+
   - repo: https://github.com/hadialqattan/pycln
     rev: "v2.2.2"
     hooks:
