@@ -92,11 +92,11 @@ class SnaphuUnwrap(UnwrapCallback):
         Parameters
         ----------
         cost : {'topo', 'defo', 'smooth', 'p-norm'}, optional
-            Statistical cost mode. (default: 'smooth')
+            Statistical cost mode. Defaults to 'smooth'.
         cost_params : isce3.unwrap.snaphu.CostParams or None, optional
-            Configuration parameters for the specified cost mode. (default: None)
+            Configuration parameters for the specified cost mode. Defaults to None.
         init_method : {'mst', 'mcf'}, optional
-            Initialization method. (default: 'mcf')
+            Initialization method. Defaults to 'mcf'.
         """
         if cost not in {"topo", "defo", "smooth", "p-norm"}:
             raise ValueError(f"unexpected cost mode '{cost}'")
@@ -235,7 +235,7 @@ def read_raster(path: PathLike, band: int = 1) -> NDArray:
     path : path_like
         Filesystem path of the dataset to read.
     band : int, optional
-        (1-based) band index of the raster to read. (default: 1)
+        (1-based) band index of the raster to read. Defaults to 1.
 
     Returns
     -------
@@ -333,33 +333,33 @@ class ICUUnwrap(UnwrapCallback):
         ----------
         min_coherence : float, optional
             Minimum coherence of valid data. Pixels with lower coherence are masked out.
-            (default: 0.1)
+            Defaults to 0.1.
         ntrees : int, optional
-            Number of randomized tree realizations to generate. (default: 7)
+            Number of randomized tree realizations to generate. Defaults to 7.
         max_branch_length : int, optional
             Maximum length of a branch cut between residues/neutrons, in pixels.
-            (default: 64)
+            Defaults to 64.
         use_phasegrad_neutrons : bool, optional
-            Whether to use phase gradient neutrons. (default: False)
+            Whether to use phase gradient neutrons. Defaults to False.
         use_intensity_neutrons : bool, optional
-            Whether to use intensity neutrons. (default: False)
+            Whether to use intensity neutrons. Defaults to False.
         phasegrad_window_size : int, optional
             Window size for estimating phase gradients. This parameter is ignored if
-            `use_phasegrad_neutrons` was false. (default: 5)
+            `use_phasegrad_neutrons` was false. Defaults to 5.
         neutron_phasegrad_thresh : float, optional
             Absolute phase gradient threshold for detecting phase gradient neutrons, in
             radians per sample. This parameter is ignored if `use_phasegrad_neutrons`
-            was false. (default: 3)
+            was false. Defaults to 3.
         neutron_intensity_thresh : float, optional
             Intensity variation threshold for detecting intensity neutrons, in standard
             deviations from the mean (based on local image statistics). This parameter
-            is ignored if `use_intensity_neutrons` was false. (default: 8)
+            is ignored if `use_intensity_neutrons` was false. Defaults to 8.
         neutron_coherence_thresh : float, optional
             Correlation coefficient threshold for detecting intensity neutrons. This
-            parameter is ignored if `use_intensity_neutrons` was false. (default: 0.8)
+            parameter is ignored if `use_intensity_neutrons` was false. Defaults to 0.8.
         min_conncomp_area_frac : float, optional
             Minimum connected component size as a fraction of the total size of the
-            interferogram tile. (default: 1/320)
+            interferogram tile. Defaults to 1/320.
         """
         if not (0.0 <= min_coherence <= 1.0):
             raise ValueError("minimum coherence must be between 0 and 1")
@@ -468,11 +468,11 @@ class PhassUnwrap(UnwrapCallback):
         Parameters
         ----------
         coherence_thresh : float, optional
-            ??? (default: 0.2)
+            ??? Defaults to 0.2.
         good_coherence : float, optional
-            ??? (default: 0.7)
+            ??? Defaults to 0.7.
         min_region_size : int, optional
-            ??? (default: 200)
+            ??? Defaults to 200.
         """
         if not (0.0 <= coherence_thresh <= 1.0):
             raise ValueError("coherence threshold must be between 0 and 1")

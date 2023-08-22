@@ -34,7 +34,7 @@ def simulate_phase_noise(
         Number of independent looks.
     seed : int or None, optional
         Seed for initializing pseudo-random number generator state. Must be nonnegative.
-        If None, then the generator will be initialized randomly. (default: None)
+        If None, then the generator will be initialized randomly. Defaults to None.
 
     Returns
     -------
@@ -72,13 +72,13 @@ def simulate_terrain(
     length, width : int
         Output dimensions.
     scale : float
-        Controls the range of variation in height. Must be positive. (default: 1000.0)
+        Controls the range of variation in height. Must be positive. Defaults to 1000.0.
     smoothness : float
         Smoothness constant. Must be in the range [0, 1]. Larger values yield smoother
-        terrain. Smaller values result in more jagged terrain. (default: 0.8)
+        terrain. Smaller values result in more jagged terrain. Defaults to 0.8.
     seed : int or None, optional
         Seed for initializing pseudo-random number generator state. Must be nonnegative.
-        If None, then the generator will be initialized randomly. (default: None)
+        If None, then the generator will be initialized randomly. Defaults to None.
 
     Returns
     -------
