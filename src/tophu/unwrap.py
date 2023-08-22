@@ -34,7 +34,7 @@ class UnwrapCallback(Protocol):
     def __call__(
         self,
         igram: NDArray[np.complexfloating],
-        corrcoef: NDArray[np.floating],
+        coherence: NDArray[np.floating],
         nlooks: float,
     ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         """
@@ -44,11 +44,11 @@ class UnwrapCallback(Protocol):
         ----------
         igram : numpy.ndarray
             Input interferogram.
-        corrcoef : numpy.ndarray
-            Sample correlation coefficient, normalized to the interval [0, 1], with the
+        coherence : numpy.ndarray
+            Sample coherence coefficient, normalized to the interval [0, 1], with the
             same shape as the input interferogram.
         nlooks : float
-            Effective number of spatial looks used to form the input correlation data.
+            Effective number of spatial looks used to form the input coherence data.
 
         Returns
         -------
@@ -110,15 +110,15 @@ class SnaphuUnwrap(UnwrapCallback):
     def __call__(
         self,
         igram: NDArray[np.complexfloating],
-        corrcoef: NDArray[np.floating],
+        coherence: NDArray[np.floating],
         nlooks: float,
     ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         # Convert input arrays to GDAL rasters with the expected datatypes.
         igram_data = np.asanyarray(igram, dtype=np.complex64)
         igram = isce3.io.gdal.Raster(igram_data)
 
-        corrcoef_data = np.asanyarray(corrcoef, dtype=np.float32)
-        corrcoef = isce3.io.gdal.Raster(corrcoef_data)
+        coherence_data = np.asanyarray(coherence, dtype=np.float32)
+        coherence = isce3.io.gdal.Raster(coherence_data)
 
         # Get interferogram shape.
         shape = (igram.length, igram.width)
@@ -132,7 +132,7 @@ class SnaphuUnwrap(UnwrapCallback):
             unw=isce3.io.gdal.Raster(unwphase),
             conncomp=isce3.io.gdal.Raster(conncomp),
             igram=igram,
-            corr=corrcoef,
+            corr=coherence,
             nlooks=nlooks,
             cost=self.cost,
             cost_params=self.cost_params,
@@ -355,8 +355,8 @@ class ICUUnwrap(UnwrapCallback):
             deviations from the mean (based on local image statistics). This parameter
             is ignored if `use_intensity_neutrons` was false. Defaults to 8.
         neutron_coherence_thresh : float, optional
-            Correlation coefficient threshold for detecting intensity neutrons. This
-            parameter is ignored if `use_intensity_neutrons` was false. Defaults to 0.8.
+            Sample coherence threshold for detecting intensity neutrons. This parameter
+            is ignored if `use_intensity_neutrons` was false. Defaults to 0.8.
         min_conncomp_area_frac : float, optional
             Minimum connected component size as a fraction of the total size of the
             interferogram tile. Defaults to 1/320.
@@ -394,7 +394,7 @@ class ICUUnwrap(UnwrapCallback):
     def __call__(
         self,
         igram: NDArray[np.complexfloating],
-        corrcoef: NDArray[np.floating],
+        coherence: NDArray[np.floating],
         nlooks: float,
     ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         # Configure ICU to unwrap the interferogram as a single tile (no bootstrapping).
@@ -418,7 +418,7 @@ class ICUUnwrap(UnwrapCallback):
 
             # Convert input arrays into rasters.
             igram_raster = to_geotiff(d / "igram.tif", igram)
-            corrcoef_raster = to_geotiff(d / "corrcoef.tif", corrcoef)
+            coherence_raster = to_geotiff(d / "coherence.tif", coherence)
 
             # Create zero-filled rasters to store output data.
             unwphase_raster = create_geotiff(
@@ -435,7 +435,7 @@ class ICUUnwrap(UnwrapCallback):
             )
 
             # Run ICU.
-            icu.unwrap(unwphase_raster, conncomp_raster, igram_raster, corrcoef_raster)
+            icu.unwrap(unwphase_raster, conncomp_raster, igram_raster, coherence_raster)
 
             # Ensure changes to output rasters are flushed to disk and close the files.
             del unwphase_raster
@@ -488,7 +488,7 @@ class PhassUnwrap(UnwrapCallback):
     def __call__(
         self,
         igram: NDArray[np.complexfloating],
-        corrcoef: NDArray[np.floating],
+        coherence: NDArray[np.floating],
         nlooks: float,
     ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         # Configure ICU to unwrap the interferogram as a single tile (no bootstrapping).
@@ -507,7 +507,7 @@ class PhassUnwrap(UnwrapCallback):
 
             # Convert input arrays into rasters.
             wphase_raster = to_geotiff(d / "wphase.tif", wphase)
-            corrcoef_raster = to_geotiff(d / "corrcoef.tif", corrcoef)
+            coherence_raster = to_geotiff(d / "coherence.tif", coherence)
 
             # Create zero-filled rasters to store output data.
             unwphase_raster = create_geotiff(
@@ -526,7 +526,7 @@ class PhassUnwrap(UnwrapCallback):
             # Run PHASS.
             phass.unwrap(
                 wphase_raster,
-                corrcoef_raster,
+                coherence_raster,
                 unwphase_raster,
                 conncomp_raster,
             )

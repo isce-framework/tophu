@@ -30,11 +30,11 @@ def dummy_inputs_and_outputs(
     Return dummy interferogram and coherence arrays (for tests that don't care about
     their values).
     """
-    unw = np.zeros((length, width), dtype=np.float32)
+    unwrapped = np.zeros((length, width), dtype=np.float32)
     conncomp = np.zeros((length, width), dtype=np.uint32)
     igram = np.zeros((length, width), dtype=np.complex64)
     coherence = np.ones((length, width), dtype=np.float32)
-    return unw, conncomp, igram, coherence
+    return unwrapped, conncomp, igram, coherence
 
 
 def round_to_nearest(n: ArrayLike, base: ArrayLike) -> NDArray:
@@ -71,12 +71,12 @@ def jaccard_similarity(a: ArrayLike, b: ArrayLike) -> float:
 
 class TestMultiScaleUnwrap:
     @pytest.mark.parametrize("length,width", [(1023, 1023), (1024, 1024)])
-    @pytest.mark.parametrize("unwrap", UNWRAP_FUNCS)
+    @pytest.mark.parametrize("unwrap_func", UNWRAP_FUNCS)
     def test_multiscale_unwrap_phase(
         self,
         length: int,
         width: int,
-        unwrap: UnwrapCallback,
+        unwrap_func: UnwrapCallback,
     ):
         # Radar sensor/geometry parameters.
         near_range = 900_000.0
@@ -117,17 +117,17 @@ class TestMultiScaleUnwrap:
         nlooks = dr * daz / (range_res * az_res)
 
         # Init output arrays.
-        unw = np.zeros((length, width), dtype=np.float32)
+        unwrapped = np.zeros((length, width), dtype=np.float32)
         conncomp = np.zeros((length, width), dtype=np.uint32)
 
         # Unwrap using the multi-resolution approach.
         tophu.multiscale_unwrap(
-            unw=unw,
+            unwrapped=unwrapped,
             conncomp=conncomp,
             igram=igram,
             coherence=coherence,
             nlooks=nlooks,
-            unwrap=unwrap,
+            unwrap_func=unwrap_func,
             downsample_factor=(3, 3),
             ntiles=(2, 2),
         )
@@ -141,9 +141,11 @@ class TestMultiScaleUnwrap:
         # the fraction of correctly unwrapped pixels, i.e. pixels where the unwrapped
         # phase and absolute phase agree up to some constant number of cycles, excluding
         # masked pixels.
-        phasediff = (phase - unw)[mask]
+        phasediff = (phase - unwrapped)[mask]
         offset = round_to_nearest(np.mean(phasediff), 2.0 * np.pi)
-        good_pixels = np.isclose(unw[mask] + offset, phase[mask], rtol=1e-5, atol=1e-5)
+        good_pixels = np.isclose(
+            unwrapped[mask] + offset, phase[mask], rtol=1e-5, atol=1e-5
+        )
         assert frac_nonzero(good_pixels) > 0.999
 
         # Check the connected component labels. There should be a single connected
@@ -154,11 +156,11 @@ class TestMultiScaleUnwrap:
         assert frac_nonzero(conncomp) > 0.999
 
     @pytest.mark.parametrize("downsample_factor", [(2, 2), (3, 3)])
-    @pytest.mark.parametrize("unwrap", UNWRAP_FUNCS)
+    @pytest.mark.parametrize("unwrap_func", UNWRAP_FUNCS)
     def test_multiscale_unwrap_phase_conncomps(
         self,
         downsample_factor: tuple[int, int],
-        unwrap: UnwrapCallback,
+        unwrap_func: UnwrapCallback,
     ):
         length, width = 512, 512
 
@@ -214,17 +216,17 @@ class TestMultiScaleUnwrap:
         igram = np.exp(1j * phase)
 
         # Init output arrays.
-        unw = np.zeros((length, width), dtype=np.float32)
+        unwrapped = np.zeros((length, width), dtype=np.float32)
         conncomp = np.zeros((length, width), dtype=np.uint32)
 
         # Unwrap using the multi-resolution approach.
         tophu.multiscale_unwrap(
-            unw=unw,
+            unwrapped=unwrapped,
             conncomp=conncomp,
             igram=igram,
             coherence=coherence,
             nlooks=nlooks,
-            unwrap=unwrap,
+            unwrap_func=unwrap_func,
             downsample_factor=downsample_factor,
             ntiles=(2, 2),
         )
@@ -240,10 +242,10 @@ class TestMultiScaleUnwrap:
         # agree up to some constant number of cycles, excluding masked pixels.
         for region_mask in [region1_mask, region2_mask]:
             mask = region_mask & valid_mask
-            phasediff = (phase - unw)[mask]
+            phasediff = (phase - unwrapped)[mask]
             offset = round_to_nearest(np.mean(phasediff), 2.0 * np.pi)
             good_pixels = np.isclose(
-                unw[mask] + offset, phase[mask], rtol=1e-5, atol=1e-5
+                unwrapped[mask] + offset, phase[mask], rtol=1e-5, atol=1e-5
             )
             assert frac_nonzero(good_pixels) > 0.999
 
@@ -297,17 +299,17 @@ class TestMultiScaleUnwrap:
         nlooks = dr * daz / (range_res * az_res)
 
         # Init output arrays.
-        unw = np.zeros((length, width), dtype=np.float32)
+        unwrapped = np.zeros((length, width), dtype=np.float32)
         conncomp = np.zeros((length, width), dtype=np.uint32)
 
         # Unwrap using the multi-resolution approach.
         tophu.multiscale_unwrap(
-            unw=unw,
+            unwrapped=unwrapped,
             conncomp=conncomp,
             igram=igram,
             coherence=coherence,
             nlooks=nlooks,
-            unwrap=tophu.PhassUnwrap(),
+            unwrap_func=tophu.PhassUnwrap(),
             downsample_factor=downsample_factor,
             ntiles=downsample_factor,
         )
@@ -321,9 +323,11 @@ class TestMultiScaleUnwrap:
         # the fraction of correctly unwrapped pixels, i.e. pixels where the unwrapped
         # phase and absolute phase agree up to some constant number of cycles, excluding
         # masked pixels.
-        phasediff = (phase - unw)[mask]
+        phasediff = (phase - unwrapped)[mask]
         offset = round_to_nearest(np.mean(phasediff), 2.0 * np.pi)
-        good_pixels = np.isclose(unw[mask] + offset, phase[mask], rtol=1e-5, atol=1e-5)
+        good_pixels = np.isclose(
+            unwrapped[mask] + offset, phase[mask], rtol=1e-5, atol=1e-5
+        )
         assert frac_nonzero(good_pixels) > 0.999
 
         # Check the connected component labels. There should be a single connected
@@ -336,50 +340,50 @@ class TestMultiScaleUnwrap:
     def test_unw_shape_mismatch(self):
         length, width = 128, 128
         _, conncomp, igram, coherence = dummy_inputs_and_outputs(length, width)
-        unw = np.zeros((length + 1, width + 1), dtype=np.float32)
-        errmsg = "shape mismatch: igram and unw must have the same shape"
+        unwrapped = np.zeros((length + 1, width + 1), dtype=np.float32)
+        errmsg = "shape mismatch: igram and unwrapped must have the same shape"
         with pytest.raises(ValueError, match=errmsg):
             tophu.multiscale_unwrap(
-                unw,
+                unwrapped,
                 conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.SnaphuUnwrap(),
+                unwrap_func=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(2, 2),
             )
 
     def test_conncomp_shape_mismatch(self):
         length, width = 128, 128
-        unw, _, igram, coherence = dummy_inputs_and_outputs(length, width)
+        unwrapped, _, igram, coherence = dummy_inputs_and_outputs(length, width)
         conncomp = np.zeros((length + 1, width + 1), dtype=np.uint32)
-        errmsg = "shape mismatch: unw and conncomp must have the same shape"
+        errmsg = "shape mismatch: unwrapped and conncomp must have the same shape"
         with pytest.raises(ValueError, match=errmsg):
             tophu.multiscale_unwrap(
-                unw,
+                unwrapped,
                 conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.SnaphuUnwrap(),
+                unwrap_func=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(2, 2),
             )
 
     def test_coherence_shape_mismatch(self):
         length, width = 128, 128
-        unw, conncomp, igram, _ = dummy_inputs_and_outputs(length, width)
+        unwrapped, conncomp, igram, _ = dummy_inputs_and_outputs(length, width)
         coherence = np.ones((length + 1, width + 1), dtype=np.float32)
         errmsg = "shape mismatch: igram and coherence must have the same shape"
         with pytest.raises(ValueError, match=errmsg):
             tophu.multiscale_unwrap(
-                unw,
+                unwrapped,
                 conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.SnaphuUnwrap(),
+                unwrap_func=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(2, 2),
             )
@@ -388,73 +392,73 @@ class TestMultiScaleUnwrap:
         shape = (2, 128, 128)
         igram = np.zeros(shape, dtype=np.complex64)
         coherence = np.ones(shape, dtype=np.float32)
-        unw = np.zeros(shape, dtype=np.complex64)
+        unwrapped = np.zeros(shape, dtype=np.complex64)
         conncomp = np.zeros(shape, dtype=np.float32)
         with pytest.raises(ValueError, match="input array must be 2-dimensional"):
             tophu.multiscale_unwrap(
-                unw,
+                unwrapped,
                 conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.SnaphuUnwrap(),
+                unwrap_func=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(2, 2, 2),
             )
 
     def test_bad_nlooks(self):
-        unw, conncomp, igram, coherence = dummy_inputs_and_outputs()
+        unwrapped, conncomp, igram, coherence = dummy_inputs_and_outputs()
         with pytest.raises(ValueError, match="effective number of looks must be >= 1"):
             tophu.multiscale_unwrap(
-                unw,
+                unwrapped,
                 conncomp,
                 igram,
                 coherence,
                 nlooks=0.0,
-                unwrap=tophu.SnaphuUnwrap(),
+                unwrap_func=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(2, 2),
             )
 
     def test_bad_downsample_factor(self):
-        unw, conncomp, igram, coherence = dummy_inputs_and_outputs()
+        unwrapped, conncomp, igram, coherence = dummy_inputs_and_outputs()
         with pytest.raises(ValueError, match="downsample factor must be >= 1"):
             tophu.multiscale_unwrap(
-                unw,
+                unwrapped,
                 conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.SnaphuUnwrap(),
+                unwrap_func=tophu.SnaphuUnwrap(),
                 downsample_factor=(0, 0),
                 ntiles=(2, 2),
             )
 
     def test_bad_ntiles(self):
-        unw, conncomp, igram, coherence = dummy_inputs_and_outputs()
+        unwrapped, conncomp, igram, coherence = dummy_inputs_and_outputs()
         with pytest.raises(ValueError, match="number of tiles must be >= 1"):
             tophu.multiscale_unwrap(
-                unw,
+                unwrapped,
                 conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.ICUUnwrap(),
+                unwrap_func=tophu.ICUUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(0, 0),
             )
 
     @pytest.mark.parametrize("overhang", [-0.1, 1.1])
     def test_bad_overhang(self, overhang: float):
-        unw, conncomp, igram, coherence = dummy_inputs_and_outputs()
+        unwrapped, conncomp, igram, coherence = dummy_inputs_and_outputs()
         with pytest.raises(ValueError, match="overhang must be between 0 and 1"):
             tophu.multiscale_unwrap(
-                unw,
+                unwrapped,
                 conncomp,
                 igram,
                 coherence,
                 nlooks=1.0,
-                unwrap=tophu.SnaphuUnwrap(),
+                unwrap_func=tophu.SnaphuUnwrap(),
                 downsample_factor=(3, 3),
                 ntiles=(2, 2),
                 overhang=overhang,
