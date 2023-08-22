@@ -2,7 +2,6 @@ from .filter import *
 from .io import *
 from .multilook import *
 from .multiscale import *
-from .tile import *
 from .unwrap import *
 from .upsample import *
 from .util import *
