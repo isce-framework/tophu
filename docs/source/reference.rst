@@ -14,13 +14,6 @@ API Reference
     ICUUnwrap
     multiscale_unwrap
 
-**Tile Management**
-
-.. autosummary::
-    :toctree: api
-
-    TiledPartition
-
 **Signal Processing**
 
 .. autosummary::
