@@ -8,7 +8,7 @@ import numpy as np
 import scipy.fft
 from numpy.typing import ArrayLike, NDArray
 
-from . import util
+from ._util import iseven
 
 __all__ = [
     "upsample_fft",
@@ -153,13 +153,13 @@ def upsample_fft(data: ArrayLike, out_shape: int | Iterable[int]) -> NDArray:
     # Nyquist bin in the padded array.
     for axis in axes:
         n = data.shape[axis]
-        if util.iseven(n):
+        if iseven(n):
             s = [slice(None)] * data.ndim
             s[axis] = n // 2
             Y[tuple(s)] *= 0.5
     for axis in axes:
         n = data.shape[axis]
-        if util.iseven(n):
+        if iseven(n):
             s1 = [slice(None)] * data.ndim
             s1[axis] = n // 2
             s2 = [slice(None)] * data.ndim
