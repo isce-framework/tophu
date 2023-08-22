@@ -91,19 +91,19 @@ class TestSnaphuUnwrap:
         phase = -4.0 * np.pi / wvl * bperp / r[:, None] * np.sin(inc_angle) * z
 
         # Correlation coefficient
-        corrcoef = np.full((length, width), fill_value=0.9)
+        coherence = np.full((length, width), fill_value=0.9)
 
         # Get effective number of looks.
         nlooks = dr * da / (range_res * az_res)
 
         # Add phase noise.
-        phase += simulate_phase_noise(corrcoef, nlooks, seed=1234)
+        phase += simulate_phase_noise(coherence, nlooks, seed=1234)
 
         # Create unit-magnitude interferogram.
         igram = np.exp(1j * phase)
 
         # Unwrap.
-        unw, conncomp = unwrap(igram, corrcoef, nlooks)
+        unw, conncomp = unwrap(igram, coherence, nlooks)
 
         # Get a mask of valid pixels (pixels that were assigned to some connected
         # component).
@@ -196,12 +196,12 @@ class TestICUUnwrap:
 
         # Simulate correlation coefficient data with islands of high coherence
         # surrounded by low-coherence pixels.
-        corrcoef = np.full((length, width), fill_value=0.1, dtype=np.float32)
-        corrcoef[mask1 | mask2] = 0.9
+        coherence = np.full((length, width), fill_value=0.1, dtype=np.float32)
+        coherence[mask1 | mask2] = 0.9
 
         # Add phase noise.
         nlooks = 9.0
-        phase += simulate_phase_noise(corrcoef, nlooks, seed=1234)
+        phase += simulate_phase_noise(coherence, nlooks, seed=1234)
 
         # Create unit-magnitude interferogram.
         igram = np.exp(1j * phase)
@@ -210,7 +210,7 @@ class TestICUUnwrap:
         unwrap = tophu.ICUUnwrap(min_coherence=0.5)
 
         # Unwrap.
-        unw, conncomp = unwrap(igram, corrcoef, nlooks)
+        unw, conncomp = unwrap(igram, coherence, nlooks)
 
         # Check the number of unique nonzero connected component labels.
         unique_labels = set(np.unique(conncomp))
@@ -283,12 +283,12 @@ class TestPhassUnwrap:
 
         # Simulate correlation coefficient data with islands of high coherence
         # surrounded by low-coherence pixels.
-        corrcoef = np.full((length, width), fill_value=0.4, dtype=np.float32)
-        corrcoef[mask1 | mask2] = 0.9
+        coherence = np.full((length, width), fill_value=0.4, dtype=np.float32)
+        coherence[mask1 | mask2] = 0.9
 
         # Add phase noise.
         nlooks = 25.0
-        phase += simulate_phase_noise(corrcoef, nlooks, seed=1234)
+        phase += simulate_phase_noise(coherence, nlooks, seed=1234)
 
         # Create unit-magnitude interferogram.
         igram = np.exp(1j * phase)
@@ -297,7 +297,7 @@ class TestPhassUnwrap:
         unwrap = tophu.PhassUnwrap(coherence_thresh=0.5)
 
         # Unwrap.
-        unw, conncomp = unwrap(igram, corrcoef, nlooks)
+        unw, conncomp = unwrap(igram, coherence, nlooks)
 
         # Check the number of unique nonzero connected component labels.
         unique_labels = set(np.unique(conncomp))
