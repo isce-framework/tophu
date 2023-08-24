@@ -5,8 +5,8 @@ import pytest
 from numpy.typing import ArrayLike, NDArray
 
 import tophu
-from tophu.multiscale import get_tile_dims
-from tophu.unwrap import UnwrapCallback
+from tophu import UnwrapCallback
+from tophu._multiscale import get_tile_dims
 
 from .simulate import simulate_phase_noise, simulate_terrain
 

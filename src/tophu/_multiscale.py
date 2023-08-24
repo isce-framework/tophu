@@ -7,12 +7,12 @@ import numpy as np
 import scipy.signal
 from numpy.typing import ArrayLike, NDArray
 
-from . import util
-from .filter import bandpass_equiripple_filter
-from .io import DatasetReader, DatasetWriter
-from .multilook import multilook
-from .unwrap import UnwrapCallback
-from .upsample import upsample_nearest
+from . import _util
+from ._filter import bandpass_equiripple_filter
+from ._io import DatasetReader, DatasetWriter
+from ._multilook import multilook
+from ._unwrap import UnwrapCallback
+from ._upsample import upsample_nearest
 
 __all__ = [
     "multiscale_unwrap",
@@ -325,7 +325,7 @@ def coarse_unwrap(
     coherence_lores_singleblock = to_single_chunk(coherence_lores)
 
     # Unwrap the downsampled data.
-    unwrapped_lores, conncomp_lores = util.map_blocks(
+    unwrapped_lores, conncomp_lores = _util.map_blocks(
         unwrap_func,
         igram_lores_singleblock,
         coherence_lores_singleblock,
@@ -512,7 +512,7 @@ def _multiscale_unwrap(
     # downsampling was requested. This case is functionally equivalent to just making a
     # single call to `unwrap_func()`.
     if (igram.numblocks == 1) and (downsample_factor == (1, 1)):
-        return util.map_blocks(  # type: ignore[return-value]
+        return _util.map_blocks(  # type: ignore[return-value]
             unwrap_func,
             igram,
             coherence,
@@ -536,7 +536,7 @@ def _multiscale_unwrap(
     )
 
     # Unwrap each tile independently.
-    unwrapped, conncomp = util.map_blocks(
+    unwrapped, conncomp = _util.map_blocks(
         unwrap_func,
         igram,
         coherence,
@@ -585,8 +585,8 @@ def get_tile_dims(
         Shape of a typical tile. The last tile along each axis may be smaller.
     """
     # Normalize `shape` and `ntiles` into tuples of ints.
-    shape = util.as_tuple_of_int(shape)
-    ntiles = util.as_tuple_of_int(ntiles)
+    shape = _util.as_tuple_of_int(shape)
+    ntiles = _util.as_tuple_of_int(ntiles)
 
     # Number of dimensions of the partitioned array.
     ndim = len(shape)
@@ -598,18 +598,18 @@ def get_tile_dims(
     if any(map(lambda n: n < 1, ntiles)):
         raise ValueError("number of tiles must be >= 1")
 
-    tiledims = util.ceil_divide(shape, ntiles)
+    tiledims = _util.ceil_divide(shape, ntiles)
 
     if snap_to is not None:
         # Normalize `snap_to` to a tuple of ints.
-        snap_to = util.as_tuple_of_int(snap_to)
+        snap_to = _util.as_tuple_of_int(snap_to)
 
-        if len(snap_to) != ndim:
+        if len(snap_to) != ndim:  # type: ignore[arg-type]
             raise ValueError("size mismatch: shape and snap_to must have same length")
-        if any(map(lambda s: s < 1, snap_to)):
+        if any(map(lambda s: s < 1, snap_to)):  # type: ignore[arg-type]
             raise ValueError("snap_to lengths must be >= 1")
 
-        tiledims = util.round_up_to_next_multiple(tiledims, snap_to)
+        tiledims = _util.round_up_to_next_multiple(tiledims, snap_to)
 
     # Tile dimensions should not exceed the full array dimensions.
     tiledims = tuple(np.minimum(tiledims, shape))
@@ -725,4 +725,4 @@ def multiscale_unwrap(
     )
 
     # Store results.
-    da.store([da_unwrapped, da_conncomp], [unwrapped, conncomp], lock=util.get_lock())
+    da.store([da_unwrapped, da_conncomp], [unwrapped, conncomp], lock=_util.get_lock())

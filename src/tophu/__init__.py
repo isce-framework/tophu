@@ -1,9 +1,9 @@
-from .filter import *
-from .io import *
-from .multilook import *
-from .multiscale import *
-from .unwrap import *
-from .upsample import *
-from .util import *
+from ._filter import *
+from ._io import *
+from ._multilook import *
+from ._multiscale import *
+from ._unwrap import *
+from ._upsample import *
+from ._util import *
 
 __version__ = "0.1.0"

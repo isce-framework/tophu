@@ -7,7 +7,7 @@ from typing import Tuple, cast
 import dask.array as da
 import numpy as np
 
-from . import util
+from ._util import iseven
 
 __all__ = [
     "multilook",
@@ -64,7 +64,7 @@ def multilook(arr: da.Array, nlooks: int | Iterable[int]) -> da.Array:
             raise ValueError("number of looks should not exceed array shape")
 
     # Warn if the number of looks along any axis is even-valued.
-    if any(map(util.iseven, nlooks)):
+    if any(map(iseven, nlooks)):
         warnings.warn(
             "one or more components of nlooks is even-valued -- this will result in"
             " a phase delay in the multilooked data equivalent to a half-bin shift",

@@ -12,7 +12,7 @@ import numpy as np
 import rasterio
 from numpy.typing import ArrayLike, DTypeLike
 
-from . import util
+from ._util import as_tuple_of_int
 
 __all__ = [
     "DatasetReader",
@@ -154,7 +154,7 @@ class BinaryFile(DatasetReader, DatasetWriter):
             object.
         """
         filepath = Path(filepath)
-        shape = util.as_tuple_of_int(shape)
+        shape = as_tuple_of_int(shape)
         dtype = np.dtype(dtype)
 
         # Get array size in bytes.
@@ -298,7 +298,7 @@ class HDF5Dataset(DatasetReader, DatasetWriter):
             # Create the HDF5 file and dataset if they don't already exist.
             # If the dataset already exists, make sure its shape & dtype are as
             # specified.
-            shape = util.as_tuple_of_int(shape)
+            shape = as_tuple_of_int(shape)
             dtype = np.dtype(dtype)
             with h5py.File(filepath, "a") as f:
                 dataset = f.require_dataset(
