@@ -1,10 +1,7 @@
-import warnings
-
 import numpy as np
 import pytest
 from isce3.unwrap import snaphu
 from numpy.typing import ArrayLike, NDArray
-from scipy.stats import mode
 
 import tophu
 
@@ -223,9 +220,7 @@ class TestICUUnwrap:
         # label matches the modal (most common) label from that region. It also checks
         # that the modal label is nonzero.
         for mask in [mask1, mask2]:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=FutureWarning)
-                modal_label, _ = mode(conncomp[mask], axis=None)
+            modal_label, _ = tophu.mode(conncomp[mask])
             assert frac_nonzero(conncomp[mask] == modal_label) > 0.95
             assert modal_label != 0
 
@@ -310,9 +305,7 @@ class TestPhassUnwrap:
         # label matches the modal (most common) label from that region. It also checks
         # that the modal label is nonzero.
         for mask in [mask1, mask2]:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", category=FutureWarning)
-                modal_label, _ = mode(conncomp[mask], axis=None)
+            modal_label, _ = tophu.mode(conncomp[mask])
             assert frac_nonzero(conncomp[mask] == modal_label) > 0.95
             assert modal_label != 0
 
