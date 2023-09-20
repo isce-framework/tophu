@@ -52,4 +52,4 @@ jobs:
           micromamba install -f test/requirements.txt -c conda-forge
           pytest --cov-report=xml
       - name: Coverage report
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v3
