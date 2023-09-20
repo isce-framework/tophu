@@ -1,5 +1,6 @@
 from ._filter import *
 from ._io import *
+from ._label import *
 from ._multilook import *
 from ._multiscale import *
 from ._unwrap import *

@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+import os
 import warnings
+from tempfile import NamedTemporaryFile
 
 import dask.array as da
 import numpy as np
 import scipy.signal
-from numpy.typing import ArrayLike, NDArray
+from numpy.typing import ArrayLike, DTypeLike, NDArray
 
 from . import _util
 from ._filter import bandpass_equiripple_filter
-from ._io import DatasetReader, DatasetWriter
+from ._io import BinaryFile, DatasetReader, DatasetWriter
+from ._label import relabel_hires_conncomps
 from ._multilook import multilook
 from ._unwrap import UnwrapCallback
 from ._upsample import upsample_nearest
@@ -393,15 +396,14 @@ def adjust_conncomp_offset_cycles(
         The corrected high-resolution unwrapped phase, in radians.
     """
     # Get unique, non-zero connected component labels in the high-resolution data.
-    unique_labels = set(np.unique(conncomp_hires))
-    unique_nonzero_labels = unique_labels - {0}
+    unique_labels = _util.unique_nonzero_integers(conncomp_hires)
 
     new_unwrapped_hires = np.copy(unwrapped_hires)
 
     # For each connected component, determine the phase cycle offset between the
     # low-resolution and high-resolution unwrapped phase by computing the mean phase
     # difference, rounded to the nearest integer number of 2pi cycles.
-    for label in unique_nonzero_labels:
+    for label in unique_labels:
         # Create a mask of pixels belonging to the current connected component in the
         # high-res data.
         conncomp_mask = conncomp_hires == label
@@ -426,195 +428,41 @@ def adjust_conncomp_offset_cycles(
     return new_unwrapped_hires
 
 
-def _multiscale_unwrap(
-    igram: da.Array,
-    coherence: da.Array,
-    nlooks: float,
-    unwrap_func: UnwrapCallback,
-    downsample_factor: tuple[int, int],
-    *,
-    do_lowpass_filter: bool = True,
-    shape_factor: float = 1.5,
-    overhang: float = 0.5,
-    ripple: float = 0.01,
-    attenuation: float = 40.0,
-) -> tuple[da.Array, da.Array]:
-    """
-    Perform 2-D phase unwrapping using a multi-resolution approach.
-
-    The input interferogram is broken up into smaller tiles, which are then unwrapped
-    independently. In order to avoid phase discontinuities between tiles, additional
-    phase cycles are added or subtracted within each tile in order to minimize the
-    discrepancy with a coarse unwrapped phase estimate formed by multilooking the
-    original interferogram.
-
-    Parameters
-    ----------
-    igram : dask.array.Array
-        The input interferogram. A two-dimensional complex-valued array.
-    coherence : dask.array.Array
-        The sample coherence coefficient, with the same shape as the input
-        interferogram.
-    nlooks : float
-        The effective number of looks used to form the input interferogram and
-        coherence.
-    unwrap_func : UnwrapCallback
-        A callback function used to unwrap the low-resolution interferogram and each
-        high-resolution interferogram tile.
-    downsample_factor : tuple of int
-        The number of looks to take along each axis in order to form the low-resolution
-        interferogram.
-    do_lowpass_filter : bool, optional
-        If True, apply a low-pass pre-filter prior to multilooking in order to reduce
-        aliasing effects. Defaults to True.
-    shape_factor : float, optional
-        The shape factor of the anti-aliasing low-pass filter applied prior to
-        multilooking (the ratio of the width of the combined pass-band and transition
-        band to the pass-band width). A larger shape factor results in a more gradual
-        filter roll-off. Ignored if `do_lowpass_filter` is False. Defaults to 1.5.
-    overhang : float, optional
-        The fraction of the low-pass filter transition bandwidth that extends beyond the
-        Nyquist frequency of the resulting multilooked data. For example, if
-        `overhang=0`, the transition band will be entirely within the Nyquist bandwidth.
-        If `overhang=0.5`, the transition band will centered on the Nyquist frequency.
-        The value must be within the interval [0, 1]. Ignored if `do_lowpass_filter` is
-        False. Defaults to 0.5.
-    ripple : float, optional
-        The maximum allowed ripple amplitude below unity gain in the pass-band of the
-        pre-filter, in decibels. Ignored if `do_lowpass_filter` is False. Defaults to
-        0.01.
-    attenuation : float, optional
-        The stop-band attenuation of the pre-filter (the difference in amplitude between
-        the ideal gain in the pass-band and the highest gain in the stop-band), in
-        decibels. Ignored if `do_lowpass_filter` is False. Defaults to 40.
-
-    Returns
-    -------
-    unwrapped : dask.array.Array
-        The unwrapped phase, in radians. An array with the same shape as the input
-        interferogram.
-    conncomp : dask.array.Array
-        An array of connected component labels, with the same shape as the unwrapped
-        phase.
-    """
-    if igram.shape != coherence.shape:
-        raise ValueError("shape mismatch: igram and coherence must have the same shape")
-    if nlooks < 1.0:
-        raise ValueError("effective number of looks must be >= 1")
-    if any(map(lambda d: d < 1, downsample_factor)):
-        raise ValueError("downsample factor must be >= 1")
-
-    # Interferogram and coherence must have the same chunksize.
-    if coherence.chunksize != igram.chunksize:
-        coherence = coherence.rechunk(igram.chunksize)
-
-    # Check for the simple case where processing is single-tile and no additional
-    # downsampling was requested. This case is functionally equivalent to just making a
-    # single call to `unwrap_func()`.
-    if (igram.numblocks == 1) and (downsample_factor == (1, 1)):
-        return _util.map_blocks(  # type: ignore[return-value]
-            unwrap_func,
-            igram,
-            coherence,
-            nlooks=nlooks,
-            meta=(np.empty((), dtype=np.float32), np.empty((), dtype=np.uint32)),
-        )
-
-    # Get a coarse estimate of the unwrapped phase using a low-resolution copy of the
-    # interferogram.
-    coarse_unwrapped, coarse_conncomp = coarse_unwrap(
-        igram=igram,
-        coherence=coherence,
-        nlooks=nlooks,
-        unwrap_func=unwrap_func,
-        downsample_factor=downsample_factor,
-        do_lowpass_filter=do_lowpass_filter,
-        shape_factor=shape_factor,
-        overhang=overhang,
-        ripple=ripple,
-        attenuation=attenuation,
-    )
-
-    # Unwrap each tile independently.
-    unwrapped, conncomp = _util.map_blocks(
-        unwrap_func,
-        igram,
-        coherence,
-        nlooks=nlooks,
-        meta=(np.empty((), dtype=np.float32), np.empty((), dtype=np.uint32)),
-    )
-
-    # Add or subtract multiples of 2pi to each connected component to minimize the mean
-    # discrepancy between the high-res and low-res unwrapped phase (in order to correct
-    # for phase discontinuities between adjacent tiles).
-    unwrapped = da.map_blocks(
-        adjust_conncomp_offset_cycles,
-        unwrapped,
-        conncomp,
-        coarse_unwrapped,
-        coarse_conncomp,
-    )
-
-    return unwrapped, conncomp
-
-
-def get_tile_dims(
+def unique_binary_file(
+    dir: str | os.PathLike,
     shape: tuple[int, ...],
-    ntiles: tuple[int, ...],
-    snap_to: tuple[int, ...] | None = None,
-) -> tuple[int, ...]:
+    dtype: DTypeLike,
+    prefix: str | None = None,
+    suffix: str | None = None,
+) -> BinaryFile:
     """
-    Get tile dimensions of an array partitioned into tiles.
-
-    Chooses tile dimensions such that an array of shape `shape` will be subdivided into
-    blocks of roughly equal shape.
+    Create a new `BinaryFile` with a unique file name.
 
     Parameters
     ----------
+    dir : path-like
+        The file system path of the directory to create the file within. Must be an
+        existing directory.
     shape : tuple of int
-        Shape of the array to be partitioned into tiles.
-    ntiles : tuple of int
-        Number of tiles along each array axis. Must be the same length as `shape`.
-    snap_to : tuple of int or None, optional
-        If specified, force tile dimensions to be a multiple of this value. Defaults to
-        None.
+        Tuple of array dimensions.
+    dtype : data-type
+        Data-type of the array's elements. Must be convertible to a `numpy.dtype`
+        object.
+    prefix : str or None, optional
+        If not None, the file name will begin with this prefix. Otherwise, a default
+        prefix is used. Defaults to None.
+    suffix : str or None, optional
+        If not None, the file name will end with this suffix. Otherwise, there will be
+        no suffix. Defaults to None.
 
     Returns
     -------
-    tiledims : tuple of int
-        Shape of a typical tile. The last tile along each axis may be smaller.
+    binary_file : BinaryFile
+        A raw binary file in the specified directory with a unique file name.
     """
-    # Normalize `shape` and `ntiles` into tuples of ints.
-    shape = _util.as_tuple_of_int(shape)
-    ntiles = _util.as_tuple_of_int(ntiles)
-
-    # Number of dimensions of the partitioned array.
-    ndim = len(shape)
-
-    if len(ntiles) != ndim:
-        raise ValueError("size mismatch: shape and ntiles must have same length")
-    if any(map(lambda s: s < 1, shape)):
-        raise ValueError("array axis lengths must be >= 1")
-    if any(map(lambda n: n < 1, ntiles)):
-        raise ValueError("number of tiles must be >= 1")
-
-    tiledims = _util.ceil_divide(shape, ntiles)
-
-    if snap_to is not None:
-        # Normalize `snap_to` to a tuple of ints.
-        snap_to = _util.as_tuple_of_int(snap_to)
-
-        if len(snap_to) != ndim:  # type: ignore[arg-type]
-            raise ValueError("size mismatch: shape and snap_to must have same length")
-        if any(map(lambda s: s < 1, snap_to)):  # type: ignore[arg-type]
-            raise ValueError("snap_to lengths must be >= 1")
-
-        tiledims = _util.round_up_to_next_multiple(tiledims, snap_to)
-
-    # Tile dimensions should not exceed the full array dimensions.
-    tiledims = tuple(np.minimum(tiledims, shape))
-
-    return tiledims
+    dir = os.fspath(dir)
+    file = NamedTemporaryFile(suffix=suffix, prefix=prefix, dir=dir, delete=False)
+    return BinaryFile(filepath=file.name, shape=shape, dtype=dtype)
 
 
 def multiscale_unwrap(
@@ -626,6 +474,8 @@ def multiscale_unwrap(
     unwrap_func: UnwrapCallback,
     downsample_factor: tuple[int, int],
     ntiles: tuple[int, int],
+    min_conncomp_overlap: float = 0.5,
+    scratchdir: str | os.PathLike | None = None,
     *,
     do_lowpass_filter: bool = True,
     shape_factor: float = 1.5,
@@ -651,7 +501,9 @@ def multiscale_unwrap(
         The output array of connected component labels, with the same shape as the
         unwrapped phase.
     igram : DatasetReader
-        The input interferogram. A two-dimensional complex-valued array.
+        The input interferogram. A two-dimensional complex-valued array. If `igram` has
+        a ``.chunks`` attribute, then the chosen tile dimensions will be a multiple of
+        that chunk shape.
     coherence : DatasetReader
         The sample coherence coefficient, with the same shape as the input
         interferogram.
@@ -667,6 +519,18 @@ def multiscale_unwrap(
     ntiles : tuple of int
         The number of tiles along each axis. A pair of integers specifying the shape of
         the grid of tiles to partition the input interferogram into.
+    min_conncomp_overlap : float, optional
+        Minimum intersection between components in order to be considered overlapping,
+        as a fraction of the area of the high-resolution component area. Used during the
+        relabeling step to determine overlap between connected components resulting from
+        tiled unwrapping and those resulting from coarse unwrapping. Must be in the
+        range (0, 1]. Defaults to 0.5.
+    scratchdir : path-like or None, optional
+        Scratch directory where intermediate processing artifacts are written.
+        If the specified directory does not exist, it will be created. If None,
+        a temporary directory will be created and automatically removed from the
+        filesystem at the end of processing. Otherwise, the directory and its
+        contents will not be cleaned up. Defaults to None.
     do_lowpass_filter : bool, optional
         If True, apply a low-pass pre-filter prior to multilooking in order to reduce
         aliasing effects. Defaults to True.
@@ -697,23 +561,32 @@ def multiscale_unwrap(
         raise ValueError(
             "shape mismatch: unwrapped and conncomp must have the same shape"
         )
+    if igram.shape != coherence.shape:
+        raise ValueError("shape mismatch: igram and coherence must have the same shape")
+
+    if nlooks < 1.0:
+        raise ValueError("effective number of looks must be >= 1")
+
+    if any(map(lambda d: d < 1, downsample_factor)):
+        raise ValueError("downsample factor must be >= 1")
 
     # Get chunksize. If the input has a `chunks` attribute (e.g. h5py Datasets, zarr
     # Arrays), ensure that the chunksize is a multiple of that shape.
     if hasattr(igram, "chunks"):
-        chunksize = get_tile_dims(igram.shape, ntiles, snap_to=igram.chunks)
+        chunksize = _util.get_tile_dims(igram.shape, ntiles, snap_to=igram.chunks)
     else:
-        chunksize = get_tile_dims(igram.shape, ntiles)
+        chunksize = _util.get_tile_dims(igram.shape, ntiles)
 
     # Convert inputs to dask arrays. Interferogram and coherence must have the same
-    # chunksize.
-    da_igram = da.from_array(igram, chunks=chunksize, asarray=True)
-    da_coherence = da.from_array(coherence, chunks=chunksize, asarray=True)
+    # chunk sizes.
+    igram_ = da.from_array(igram, chunks=chunksize, asarray=True)
+    coherence_ = da.from_array(coherence, chunks=chunksize, asarray=True)
 
-    # Unwrap.
-    da_unwrapped, da_conncomp = _multiscale_unwrap(
-        igram=da_igram,
-        coherence=da_coherence,
+    # Get a coarse estimate of the unwrapped phase using a low-resolution copy of the
+    # interferogram.
+    coarse_unwrapped, coarse_conncomp = coarse_unwrap(
+        igram=igram_,
+        coherence=coherence_,
         nlooks=nlooks,
         unwrap_func=unwrap_func,
         downsample_factor=downsample_factor,
@@ -724,5 +597,66 @@ def multiscale_unwrap(
         attenuation=attenuation,
     )
 
-    # Store results.
-    da.store([da_unwrapped, da_conncomp], [unwrapped, conncomp], lock=_util.get_lock())
+    # Unwrap each (high-resolution) tile independently.
+    tiled_unwrapped, tiled_conncomp = _util.map_blocks(
+        unwrap_func,
+        igram_,
+        coherence_,
+        nlooks=nlooks,
+        meta=(np.empty((), dtype=np.float32), np.empty((), dtype=np.uint32)),
+    )
+
+    # Add or subtract multiples of 2pi to each connected component to minimize the mean
+    # discrepancy between the high-res and low-res unwrapped phase (in order to correct
+    # for phase discontinuities between adjacent tiles).
+    multiscale_unwrapped = da.map_blocks(
+        adjust_conncomp_offset_cycles,
+        tiled_unwrapped,
+        tiled_conncomp,
+        coarse_unwrapped,
+        coarse_conncomp,
+    )
+
+    # Create the scratch directory if it didn't exist. If no scratch directory was
+    # supplied, create a temporary directory that will be cleaned up automatically when
+    # the context block is exited.
+    with _util.scratch_directory(scratchdir) as d:
+        # Create temporary files to store the intermediate connected component labels
+        # from coarse & tiled unwrapping.
+        coarse_conncomp_tmpfile = unique_binary_file(
+            dir=d,
+            shape=coarse_conncomp.shape,
+            dtype=coarse_conncomp.dtype,
+            prefix="coarse_conncomp",
+        )
+        tiled_conncomp_tmpfile = unique_binary_file(
+            dir=d,
+            shape=tiled_conncomp.shape,
+            dtype=tiled_conncomp.dtype,
+            prefix="tiled_conncomp",
+        )
+
+        # Store the final unwrapped phase and the intermediate connected component
+        # labels. It's necessary to store these intermediate connected component arrays
+        # prior to relabeling in order to avoid accidentally executing part of the task
+        # graph twice.
+        da.store(
+            [multiscale_unwrapped, coarse_conncomp, tiled_conncomp],
+            [unwrapped, coarse_conncomp_tmpfile, tiled_conncomp_tmpfile],
+            lock=_util.get_lock(),
+        )
+
+        # Create new Dask arrays from the intermediate connected component arrays that
+        # we stored to the disk.
+        coarse_conncomp = da.from_array(coarse_conncomp_tmpfile, chunks=chunksize)
+        tiled_conncomp = da.from_array(tiled_conncomp_tmpfile, chunks=chunksize)
+
+        # Relabel the tiled connected components based on the coarse components.
+        relabeled_conncomp = relabel_hires_conncomps(
+            tiled_conncomp,
+            coarse_conncomp,
+            min_overlap=min_conncomp_overlap,
+        )
+
+        # Store the final output connected component labels.
+        da.store(relabeled_conncomp, conncomp, lock=_util.get_lock())

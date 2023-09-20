@@ -6,7 +6,6 @@ from numpy.typing import ArrayLike, NDArray
 
 import tophu
 from tophu import UnwrapCallback
-from tophu._multiscale import get_tile_dims
 
 from .simulate import simulate_phase_noise, simulate_terrain
 
@@ -249,12 +248,27 @@ class TestMultiScaleUnwrap:
             )
             assert frac_nonzero(good_pixels) > 0.999
 
-        # Check the connected component labels.
-        # XXX We haven't yet implemented a correction for discrepancies between labels
-        # from different tiles. For now, just check the mask of all valid pixels,
-        # regardless of their label.
-        expected_mask = region1_mask | region2_mask
-        assert jaccard_similarity(valid_mask, expected_mask) > 0.975
+        # Check the set of unique connected component labels. There should be two
+        # connected components, labeled 1 and 2, as well as masked-out pixels labeled 0.
+        assert set(np.unique(conncomp)) == {0, 1, 2}
+
+        # Check that each high-coherence region is associated with a single connected
+        # component. The test checks the fraction of pixels within each region mask
+        # whose label matches the modal (most common) label from that region. It also
+        # checks that the modal label is nonzero.
+        for mask in [region1_mask, region2_mask]:
+            modal_label, _ = tophu.mode(conncomp[mask])
+            assert frac_nonzero(conncomp[mask] == modal_label) > 0.95
+            assert modal_label != 0
+
+        # Check that the modal label of each region mask is different.
+        assert tophu.mode(conncomp[region1_mask]) != tophu.mode(conncomp[region2_mask])
+
+        # Check that the remaining non-region pixels are masked out (labeled 0). The
+        # test compares the fraction of non-region pixels that were labeled 0 to a
+        # predefined threshold.
+        nonregion_mask = ~(region1_mask | region2_mask)
+        assert frac_nonzero(conncomp[nonregion_mask] == 0) > 0.95
 
     @pytest.mark.parametrize("downsample_factor", [(1, 1), (1, 4), (5, 1)])
     def test_multiscale_unwrap_single_look(self, downsample_factor: tuple[int, int]):
@@ -463,40 +477,3 @@ class TestMultiScaleUnwrap:
                 ntiles=(2, 2),
                 overhang=overhang,
             )
-
-
-class TestGetTileDims:
-    def test_simple(self):
-        shape = (100, 101)
-        ntiles = (4, 3)
-        tiledims = get_tile_dims(shape, ntiles)
-        assert tiledims == (25, 34)
-
-    def test_snapped(self):
-        shape = (30, 40, 50)
-        ntiles = (3, 4, 5)
-        snap_to = (5, 6, 7)
-        tiledims = get_tile_dims(shape, ntiles, snap_to)
-        assert tiledims == (10, 12, 14)
-
-    def test_ntiles_length_mismatch(self):
-        errmsg = "size mismatch: shape and ntiles must have same length"
-        with pytest.raises(ValueError, match=errmsg):
-            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 2))
-
-    def test_bad_shape(self):
-        with pytest.raises(ValueError, match="array axis lengths must be >= 1"):
-            get_tile_dims(shape=(3, 0, 5), ntiles=(1, 2, 1))
-
-    def test_bad_ntiles(self):
-        with pytest.raises(ValueError, match="number of tiles must be >= 1"):
-            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 0, 1))
-
-    def test_snap_to_length_mismatch(self):
-        errmsg = "size mismatch: shape and snap_to must have same length"
-        with pytest.raises(ValueError, match=errmsg):
-            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 2, 1), snap_to=(4, 4))
-
-    def test_bad_snap_to(self):
-        with pytest.raises(ValueError, match="snap_to lengths must be >= 1"):
-            get_tile_dims(shape=(3, 4, 5), ntiles=(1, 2, 1), snap_to=(4, 0, 5))
