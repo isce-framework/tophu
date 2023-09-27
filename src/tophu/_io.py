@@ -502,6 +502,8 @@ class RasterBand(DatasetReader, DatasetWriter):
         transform : Affine instance, optional
             Affine transformation mapping the pixel space to geographic space.
             Defaults to None.
+        **options : dict, optional
+            Additional driver-specific creation options passed to `rasterio.open`.
         """
         ...
 
