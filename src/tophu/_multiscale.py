@@ -79,7 +79,7 @@ def lowpass_filter_and_multilook(
     def get_filter_coeffs(n: int) -> NDArray:
         # If `n` is 1, then the subsequent multilooking step will be a no-op, so there's
         # no need to apply a low-pass filter. In that case, we choose the filter
-        # coefficents to have a frequency response of unity.
+        # coefficients to have a frequency response of unity.
         if n == 1:
             return 1.0
 
