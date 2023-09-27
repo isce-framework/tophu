@@ -566,7 +566,7 @@ class RasterBand(DatasetReader, DatasetWriter):
             crs=crs,
             transform=transform,
             dtype=dtype,
-            options=options,
+            **options,
         ) as dataset:
             # Band index must not be None if the dataset contains more than one band.
             # If a band index was supplied, check that it's within the range of valid
