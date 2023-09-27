@@ -4,6 +4,7 @@ import os
 import tempfile
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
@@ -42,6 +43,7 @@ def create_raster_dataset(
     shape: tuple[int, int],
     count: int,
     dtype: DTypeLike,
+    **options: dict[str, Any],
 ) -> None:
     """Create a new raster dataset."""
     with rasterio.open(
@@ -52,6 +54,7 @@ def create_raster_dataset(
         width=shape[1],
         count=count,
         dtype=dtype,
+        **options,
     ):
         pass
 
@@ -418,3 +421,46 @@ class TestRasterBand:
         with pytest.raises(TypeError, match=errmsg):
             # Required parameter `dtype` is missing.
             tophu.RasterBand(filepath="asdf.tif", width=128, height=128)
+
+    def test_creation_options(self):
+        shape = (1024, 512)
+        dtype = np.float32
+        block_shape = (128, 128)
+        gtiff_options = {
+            "compress": "deflate",
+            "tiled": "yes",
+            "blockysize": str(block_shape[0]),
+            "blockxsize": str(block_shape[1]),
+        }
+        with tempfile.NamedTemporaryFile() as f:
+            filepath = f.name
+            driver = "GTiff"
+            create_raster_dataset(
+                filepath=filepath,
+                driver=driver,
+                shape=shape,
+                count=1,
+                dtype=dtype,
+                **gtiff_options,
+            )
+
+            with rasterio.open(filepath) as src:
+                assert src.block_shapes == [block_shape]
+                assert src.compression.name == gtiff_options["compress"]
+
+        envi_options = {"suffix": "add"}
+        suffix = ".bin"
+        with tempfile.NamedTemporaryFile(suffix=suffix) as f:
+            filepath = f.name
+            driver = "ENVI"
+            create_raster_dataset(
+                filepath=filepath,
+                driver=driver,
+                shape=shape,
+                count=1,
+                dtype=dtype,
+                **envi_options,
+            )
+            # Check that we created a header file with .hdr appended,
+            # not replacing the original suffix
+            assert Path(filepath).with_suffix(suffix + ".hdr").exists()
