@@ -48,7 +48,7 @@ Basic usage with raster files
         igram,
         coherence,
         nlooks=nlooks,
-        unwrap=unwrap_callback,
+        unwrap_func=unwrap_callback,
         downsample_factor=downsample_factor,
         ntiles=ntiles,
     )
