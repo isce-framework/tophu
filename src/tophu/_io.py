@@ -502,6 +502,8 @@ class RasterBand(DatasetReader, DatasetWriter):
         transform : Affine instance, optional
             Affine transformation mapping the pixel space to geographic space.
             Defaults to None.
+        **options : dict, optional
+            Additional driver-specific creation options passed to `rasterio.open`.
         """
         ...
 
@@ -523,7 +525,9 @@ class RasterBand(DatasetReader, DatasetWriter):
         # If any of `width`, `height`, or `dtype` are provided, all three must be
         # provided. If any were not provided, the dataset must already exist. Otherwise,
         # create the dataset if it did not exist.
-        if (width is None) and (height is None) and (dtype is None):
+        # In addition, `options` may only be provided when creating a new dataset. It
+        # must be an empty dict when opening an existing dataset.
+        if (width is None) and (height is None) and (dtype is None) and (not options):
             mode = "r"
             count = None
         elif (width is not None) and (height is not None) and (dtype is not None):
@@ -551,6 +555,7 @@ class RasterBand(DatasetReader, DatasetWriter):
                         driver: str | None = None,
                         crs: str | dict | rasterio.crs.CRS | None = None,
                         transform: rasterio.transform.Affine | None = None,
+                        **options: dict[str, Any],
                     )
             """).strip()
             raise TypeError(errmsg)
