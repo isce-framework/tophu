@@ -5,7 +5,7 @@ import os
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, overload, runtime_checkable
+from typing import Any, Protocol, overload, runtime_checkable
 
 import h5py
 import numpy as np
@@ -480,6 +480,7 @@ class RasterBand(DatasetReader, DatasetWriter):
         driver: str | None = None,
         crs: str | dict | rasterio.crs.CRS | None = None,
         transform: rasterio.transform.Affine | None = None,
+        **options: dict[str, Any],
     ):  # noqa: D418
         """
         Construct a new `RasterBand` object.
@@ -515,6 +516,7 @@ class RasterBand(DatasetReader, DatasetWriter):
         driver=None,
         crs=None,
         transform=None,
+        **options,
     ):  # noqa: D107
         filepath = Path(filepath)
 
@@ -564,6 +566,7 @@ class RasterBand(DatasetReader, DatasetWriter):
             crs=crs,
             transform=transform,
             dtype=dtype,
+            options=options,
         ) as dataset:
             # Band index must not be None if the dataset contains more than one band.
             # If a band index was supplied, check that it's within the range of valid
