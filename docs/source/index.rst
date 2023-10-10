@@ -9,5 +9,6 @@ interferometric synthetic aperture radar (InSAR).
    :hidden:
 
    installation
+   usage
    reference
    changelog
