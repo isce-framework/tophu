@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import numpy as np
 import pytest
 from numpy.typing import ArrayLike, NDArray
@@ -66,6 +70,28 @@ def jaccard_similarity(a: ArrayLike, b: ArrayLike) -> float:
     a = np.asanyarray(a, dtype=np.bool_)
     b = np.asanyarray(b, dtype=np.bool_)
     return np.sum(a & b) / np.sum(a | b)
+
+
+def list_subdirs(dir: str | os.PathLike) -> list[Path]:
+    """
+    List all immediate subdirectories of the specified directory.
+
+    Parameters
+    ----------
+    dir : path-like
+        The parent directory. Must be an existing file system directory.
+
+    Returns
+    -------
+    subdirs : list of pathlib.Path
+        All subdirectories of `dir`.
+    """
+    dir = Path(dir)
+
+    if not dir.is_dir():
+        raise ValueError(f"'{dir}' is not an existing directory.")
+
+    return [d for d in dir.iterdir() if d.is_dir()]
 
 
 class TestMultiScaleUnwrap:
@@ -477,3 +503,29 @@ class TestMultiScaleUnwrap:
                 ntiles=(2, 2),
                 overhang=overhang,
             )
+
+    def test_scratchdir(self):
+        unwrapped, conncomp, igram, coherence = dummy_inputs_and_outputs()
+
+        with TemporaryDirectory() as d:
+            scratchdir = Path(d)
+
+            tophu.multiscale_unwrap(
+                unwrapped,
+                conncomp,
+                igram,
+                coherence,
+                nlooks=1.0,
+                unwrap_func=tophu.SnaphuUnwrap(),
+                downsample_factor=(3, 3),
+                ntiles=(2, 2),
+                scratchdir=scratchdir,
+            )
+
+            # Check that the scratch directory still exists.
+            assert scratchdir.is_dir()
+
+            # The scratch directory should contain 5 unique subdirectories -- one for
+            # each tile and one for the coarse unwrapping step.
+            subdirs = list_subdirs(scratchdir)
+            assert len(subdirs) == 5
