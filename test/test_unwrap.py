@@ -1,3 +1,6 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import numpy as np
 import pytest
 from isce3.unwrap import snaphu
@@ -100,7 +103,9 @@ class TestSnaphuUnwrap:
         igram = np.exp(1j * phase)
 
         # Unwrap.
-        unw, conncomp = unwrap(igram, coherence, nlooks)
+        with TemporaryDirectory() as d:
+            scratchdir = Path(d)
+            unw, conncomp = unwrap(igram, coherence, nlooks, scratchdir)
 
         # Get a mask of valid pixels (pixels that were assigned to some connected
         # component).
@@ -122,6 +127,31 @@ class TestSnaphuUnwrap:
         unique_labels = set(np.unique(conncomp[mask]))
         assert unique_labels == {1}
         assert frac_nonzero(conncomp) > 0.95
+
+    def test_scratchdir(self):
+        # Create dummy interferogram & coherence data.
+        length, width = 256, 256
+        igram = np.zeros((length, width), dtype=np.complex64)
+        coherence = np.ones((length, width), dtype=np.float32)
+
+        # Init unwrap callback functor.
+        unwrap = tophu.SnaphuUnwrap()
+
+        with TemporaryDirectory() as d:
+            scratchdir = Path(d)
+
+            # Unwrap.
+            unwrap(igram, coherence, 1.0, scratchdir)
+
+            # Check directory contents.
+            for filename in [
+                "snaphu.conf",
+                "igram.c8",
+                "corr.f4",
+                "unw.f4",
+                "conncomp.u4",
+            ]:
+                assert (scratchdir / filename).is_file()
 
 
 class TestICUUnwrap:
@@ -207,7 +237,9 @@ class TestICUUnwrap:
         unwrap = tophu.ICUUnwrap(min_coherence=0.5)
 
         # Unwrap.
-        unw, conncomp = unwrap(igram, coherence, nlooks)
+        with TemporaryDirectory() as d:
+            scratchdir = Path(d)
+            unw, conncomp = unwrap(igram, coherence, nlooks, scratchdir)
 
         # Check the number of unique nonzero connected component labels.
         unique_labels = set(np.unique(conncomp))
@@ -238,6 +270,30 @@ class TestICUUnwrap:
             off = round_to_nearest(np.mean(phasediff[mask]), 2.0 * np.pi)
             good_pixels = np.isclose(unw[mask] + off, phase[mask], rtol=1e-5, atol=1e-5)
             assert frac_nonzero(good_pixels) > 0.95
+
+    def test_scratchdir(self):
+        # Create dummy interferogram & coherence data.
+        length, width = 256, 256
+        igram = np.zeros((length, width), dtype=np.complex64)
+        coherence = np.ones((length, width), dtype=np.float32)
+
+        # Init unwrap callback functor.
+        unwrap = tophu.ICUUnwrap()
+
+        with TemporaryDirectory() as d:
+            scratchdir = Path(d)
+
+            # Unwrap.
+            unwrap(igram, coherence, 1.0, scratchdir)
+
+            # Check directory contents.
+            for filename in [
+                "igram.tif",
+                "coherence.tif",
+                "unwphase.tif",
+                "conncomp.tif",
+            ]:
+                assert (scratchdir / filename).is_file()
 
 
 class TestPhassUnwrap:
@@ -292,7 +348,9 @@ class TestPhassUnwrap:
         unwrap = tophu.PhassUnwrap(coherence_thresh=0.5)
 
         # Unwrap.
-        unw, conncomp = unwrap(igram, coherence, nlooks)
+        with TemporaryDirectory() as d:
+            scratchdir = Path(d)
+            unw, conncomp = unwrap(igram, coherence, nlooks, scratchdir)
 
         # Check the number of unique nonzero connected component labels.
         unique_labels = set(np.unique(conncomp))
@@ -323,3 +381,27 @@ class TestPhassUnwrap:
             off = round_to_nearest(np.mean(phasediff[mask]), 2.0 * np.pi)
             good_pixels = np.isclose(unw[mask] + off, phase[mask], rtol=1e-5, atol=1e-5)
             assert frac_nonzero(good_pixels) > 0.95
+
+    def test_scratchdir(self):
+        # Create dummy interferogram & coherence data.
+        length, width = 256, 256
+        igram = np.zeros((length, width), dtype=np.complex64)
+        coherence = np.ones((length, width), dtype=np.float32)
+
+        # Init unwrap callback functor.
+        unwrap = tophu.PhassUnwrap()
+
+        with TemporaryDirectory() as d:
+            scratchdir = Path(d)
+
+            # Unwrap.
+            unwrap(igram, coherence, 1.0, scratchdir)
+
+            # Check directory contents.
+            for filename in [
+                "wphase.tif",
+                "coherence.tif",
+                "unwphase.tif",
+                "conncomp.tif",
+            ]:
+                assert (scratchdir / filename).is_file()

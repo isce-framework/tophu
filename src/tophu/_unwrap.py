@@ -4,7 +4,6 @@ import dataclasses
 import warnings
 from os import PathLike
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Literal, Protocol, runtime_checkable
 
 import isce3
@@ -36,6 +35,7 @@ class UnwrapCallback(Protocol):
         igram: NDArray[np.complexfloating],
         coherence: NDArray[np.floating],
         nlooks: float,
+        scratchdir: Path,
     ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         """
         Perform two-dimensional phase unwrapping.
@@ -49,6 +49,8 @@ class UnwrapCallback(Protocol):
             same shape as the input interferogram.
         nlooks : float
             Effective number of spatial looks used to form the input coherence data.
+        scratchdir : pathlib.Path
+            Scratch directory where intermediate processing artifacts may be written.
 
         Returns
         -------
@@ -112,6 +114,7 @@ class SnaphuUnwrap(UnwrapCallback):
         igram: NDArray[np.complexfloating],
         coherence: NDArray[np.floating],
         nlooks: float,
+        scratchdir: Path,
     ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         # Convert input arrays to GDAL rasters with the expected datatypes.
         igram_data = np.asanyarray(igram, dtype=np.complex64)
@@ -137,6 +140,7 @@ class SnaphuUnwrap(UnwrapCallback):
             cost=self.cost,
             cost_params=self.cost_params,
             init_method=self.init_method,
+            scratchdir=scratchdir,
         )
 
         return unwphase, conncomp
@@ -396,6 +400,7 @@ class ICUUnwrap(UnwrapCallback):
         igram: NDArray[np.complexfloating],
         coherence: NDArray[np.floating],
         nlooks: float,
+        scratchdir: Path,
     ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         # Configure ICU to unwrap the interferogram as a single tile (no bootstrapping).
         icu = isce3.unwrap.ICU(
@@ -412,38 +417,34 @@ class ICUUnwrap(UnwrapCallback):
             min_cc_area=self.min_conncomp_area_frac,
         )
 
-        # Create a temporary scratch directory to store intermediate rasters.
-        with TemporaryDirectory() as tmpdir:
-            d = Path(tmpdir)
+        # Convert input arrays into rasters.
+        igram_raster = to_geotiff(scratchdir / "igram.tif", igram)
+        coherence_raster = to_geotiff(scratchdir / "coherence.tif", coherence)
 
-            # Convert input arrays into rasters.
-            igram_raster = to_geotiff(d / "igram.tif", igram)
-            coherence_raster = to_geotiff(d / "coherence.tif", coherence)
+        # Create zero-filled rasters to store output data.
+        unwphase_raster = create_geotiff(
+            scratchdir / "unwphase.tif",
+            width=igram.shape[1],
+            length=igram.shape[0],
+            dtype=np.float32,
+        )
+        conncomp_raster = create_geotiff(
+            scratchdir / "conncomp.tif",
+            width=igram.shape[1],
+            length=igram.shape[0],
+            dtype=np.uint8,
+        )
 
-            # Create zero-filled rasters to store output data.
-            unwphase_raster = create_geotiff(
-                d / "unwphase.tif",
-                width=igram.shape[1],
-                length=igram.shape[0],
-                dtype=np.float32,
-            )
-            conncomp_raster = create_geotiff(
-                d / "conncomp.tif",
-                width=igram.shape[1],
-                length=igram.shape[0],
-                dtype=np.uint8,
-            )
+        # Run ICU.
+        icu.unwrap(unwphase_raster, conncomp_raster, igram_raster, coherence_raster)
 
-            # Run ICU.
-            icu.unwrap(unwphase_raster, conncomp_raster, igram_raster, coherence_raster)
+        # Ensure changes to output rasters are flushed to disk and close the files.
+        del unwphase_raster
+        del conncomp_raster
 
-            # Ensure changes to output rasters are flushed to disk and close the files.
-            del unwphase_raster
-            del conncomp_raster
-
-            # Read output rasters into in-memory arrays.
-            unwphase = read_raster(d / "unwphase.tif")
-            conncomp = read_raster(d / "conncomp.tif")
+        # Read output rasters into in-memory arrays.
+        unwphase = read_raster(scratchdir / "unwphase.tif")
+        conncomp = read_raster(scratchdir / "conncomp.tif")
 
         return unwphase, conncomp
 
@@ -490,6 +491,7 @@ class PhassUnwrap(UnwrapCallback):
         igram: NDArray[np.complexfloating],
         coherence: NDArray[np.floating],
         nlooks: float,
+        scratchdir: Path,
     ) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
         # Configure ICU to unwrap the interferogram as a single tile (no bootstrapping).
         phass = isce3.unwrap.Phass(
@@ -501,42 +503,38 @@ class PhassUnwrap(UnwrapCallback):
         # Get wrapped phase.
         wphase = np.angle(igram)
 
-        # Create a temporary scratch directory to store intermediate rasters.
-        with TemporaryDirectory() as tmpdir:
-            d = Path(tmpdir)
+        # Convert input arrays into rasters.
+        wphase_raster = to_geotiff(scratchdir / "wphase.tif", wphase)
+        coherence_raster = to_geotiff(scratchdir / "coherence.tif", coherence)
 
-            # Convert input arrays into rasters.
-            wphase_raster = to_geotiff(d / "wphase.tif", wphase)
-            coherence_raster = to_geotiff(d / "coherence.tif", coherence)
+        # Create zero-filled rasters to store output data.
+        unwphase_raster = create_geotiff(
+            scratchdir / "unwphase.tif",
+            width=igram.shape[1],
+            length=igram.shape[0],
+            dtype=np.float32,
+        )
+        conncomp_raster = create_geotiff(
+            scratchdir / "conncomp.tif",
+            width=igram.shape[1],
+            length=igram.shape[0],
+            dtype=np.uint32,
+        )
 
-            # Create zero-filled rasters to store output data.
-            unwphase_raster = create_geotiff(
-                d / "unwphase.tif",
-                width=igram.shape[1],
-                length=igram.shape[0],
-                dtype=np.float32,
-            )
-            conncomp_raster = create_geotiff(
-                d / "conncomp.tif",
-                width=igram.shape[1],
-                length=igram.shape[0],
-                dtype=np.uint32,
-            )
+        # Run PHASS.
+        phass.unwrap(
+            wphase_raster,
+            coherence_raster,
+            unwphase_raster,
+            conncomp_raster,
+        )
 
-            # Run PHASS.
-            phass.unwrap(
-                wphase_raster,
-                coherence_raster,
-                unwphase_raster,
-                conncomp_raster,
-            )
+        # Ensure changes to output rasters are flushed to disk and close the files.
+        del unwphase_raster
+        del conncomp_raster
 
-            # Ensure changes to output rasters are flushed to disk and close the files.
-            del unwphase_raster
-            del conncomp_raster
-
-            # Read output rasters into in-memory arrays.
-            unwphase = read_raster(d / "unwphase.tif")
-            conncomp = read_raster(d / "conncomp.tif")
+        # Read output rasters into in-memory arrays.
+        unwphase = read_raster(scratchdir / "unwphase.tif")
+        conncomp = read_raster(scratchdir / "conncomp.tif")
 
         return unwphase, conncomp

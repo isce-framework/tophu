@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import os
 import warnings
-from tempfile import NamedTemporaryFile
+from pathlib import Path
+from tempfile import NamedTemporaryFile, mkdtemp
 
 import dask.array as da
 import numpy as np
@@ -204,6 +205,55 @@ def upsample_unwrapped_phase(
     return wrapped_hires + 2.0 * np.pi * diff_cycles_hires
 
 
+def unwrap_in_tmpdir(
+    igram: NDArray[np.complexfloating],
+    coherence: NDArray[np.floating],
+    *,
+    unwrap_func: UnwrapCallback,
+    nlooks: float,
+    dir: Path,
+) -> tuple[NDArray[np.floating], NDArray[np.unsignedinteger]]:
+    """
+    Perform phase unwrapping in a uniquely-named subdirectory.
+
+    This function acts as a wrapper around `unwrap_func`. It creates a new unique
+    subdirectory in `dir` to be used as a scratch directory for phase unwrapping. As
+    long as `unwrap_func` only writes to the scratch directory, data races will not
+    occur when `unwrap_in_tmpdir` is executed in parallel.
+
+    The scratch directory does not get automatically cleaned up after processing.
+
+    Parameters
+    ----------
+    igram : numpy.ndarray
+        Input interferogram.
+    coherence : numpy.ndarray
+        Sample coherence coefficient, normalized to the interval [0, 1], with the
+        same shape as the input interferogram.
+    unwrap_func : UnwrapCallback
+        A callback function used to unwrap the interferogram.
+    nlooks : float
+        Effective number of spatial looks used to form the input coherence data.
+    dir : pathlib.Path
+        Parent directory to create the scratch directory inside. Must be an existing
+        file system directory.
+
+    Returns
+    -------
+    unwphase : numpy.ndarray
+        Unwrapped phase, in radians.
+    conncomp : numpy.ndarray
+        Connected component labels, with the same shape as the unwrapped phase.
+    """
+    scratchdir = Path(mkdtemp(dir=os.fspath(dir)))
+    return unwrap_func(
+        igram=igram,
+        coherence=coherence,
+        nlooks=nlooks,
+        scratchdir=scratchdir,
+    )
+
+
 def coarse_unwrap(
     igram: da.Array,
     coherence: da.Array,
@@ -211,6 +261,7 @@ def coarse_unwrap(
     unwrap_func: UnwrapCallback,
     downsample_factor: tuple[int, int],
     *,
+    scratchdir: Path,
     do_lowpass_filter: bool = True,
     shape_factor: float = 1.5,
     overhang: float = 0.5,
@@ -242,6 +293,9 @@ def coarse_unwrap(
     downsample_factor : tuple of int
         The number of looks to take along each axis in order to form the low-resolution
         interferogram.
+    scratchdir : pathlib.Path
+        Scratch directory where intermediate processing artifacts may be written. Must
+        be an existing file system directory.
     do_lowpass_filter : bool, optional
         If True, apply a low-pass pre-filter prior to multilooking in order to reduce
         aliasing effects. Defaults to True.
@@ -329,10 +383,12 @@ def coarse_unwrap(
 
     # Unwrap the downsampled data.
     unwrapped_lores, conncomp_lores = _util.map_blocks(
-        unwrap_func,
+        unwrap_in_tmpdir,
         igram_lores_singleblock,
         coherence_lores_singleblock,
+        unwrap_func=unwrap_func,
         nlooks=nlooks_lores,
+        dir=scratchdir,
         meta=(np.empty((), dtype=np.float32), np.empty((), dtype=np.uint32)),
     )
 
@@ -582,45 +638,48 @@ def multiscale_unwrap(
     igram_ = da.from_array(igram, chunks=chunksize, asarray=True)
     coherence_ = da.from_array(coherence, chunks=chunksize, asarray=True)
 
-    # Get a coarse estimate of the unwrapped phase using a low-resolution copy of the
-    # interferogram.
-    coarse_unwrapped, coarse_conncomp = coarse_unwrap(
-        igram=igram_,
-        coherence=coherence_,
-        nlooks=nlooks,
-        unwrap_func=unwrap_func,
-        downsample_factor=downsample_factor,
-        do_lowpass_filter=do_lowpass_filter,
-        shape_factor=shape_factor,
-        overhang=overhang,
-        ripple=ripple,
-        attenuation=attenuation,
-    )
-
-    # Unwrap each (high-resolution) tile independently.
-    tiled_unwrapped, tiled_conncomp = _util.map_blocks(
-        unwrap_func,
-        igram_,
-        coherence_,
-        nlooks=nlooks,
-        meta=(np.empty((), dtype=np.float32), np.empty((), dtype=np.uint32)),
-    )
-
-    # Add or subtract multiples of 2pi to each connected component to minimize the mean
-    # discrepancy between the high-res and low-res unwrapped phase (in order to correct
-    # for phase discontinuities between adjacent tiles).
-    multiscale_unwrapped = da.map_blocks(
-        adjust_conncomp_offset_cycles,
-        tiled_unwrapped,
-        tiled_conncomp,
-        coarse_unwrapped,
-        coarse_conncomp,
-    )
-
     # Create the scratch directory if it didn't exist. If no scratch directory was
     # supplied, create a temporary directory that will be cleaned up automatically when
     # the context block is exited.
     with _util.scratch_directory(scratchdir) as d:
+        # Get a coarse estimate of the unwrapped phase using a low-resolution copy of
+        # the interferogram.
+        coarse_unwrapped, coarse_conncomp = coarse_unwrap(
+            igram=igram_,
+            coherence=coherence_,
+            nlooks=nlooks,
+            unwrap_func=unwrap_func,
+            downsample_factor=downsample_factor,
+            scratchdir=d,
+            do_lowpass_filter=do_lowpass_filter,
+            shape_factor=shape_factor,
+            overhang=overhang,
+            ripple=ripple,
+            attenuation=attenuation,
+        )
+
+        # Unwrap each (high-resolution) tile independently.
+        tiled_unwrapped, tiled_conncomp = _util.map_blocks(
+            unwrap_in_tmpdir,
+            igram_,
+            coherence_,
+            unwrap_func=unwrap_func,
+            nlooks=nlooks,
+            dir=d,
+            meta=(np.empty((), dtype=np.float32), np.empty((), dtype=np.uint32)),
+        )
+
+        # Add or subtract multiples of 2pi to each connected component to minimize the
+        # mean discrepancy between the high-res and low-res unwrapped phase (in order to
+        # correct for phase discontinuities between adjacent tiles).
+        multiscale_unwrapped = da.map_blocks(
+            adjust_conncomp_offset_cycles,
+            tiled_unwrapped,
+            tiled_conncomp,
+            coarse_unwrapped,
+            coarse_conncomp,
+        )
+
         # Create temporary files to store the intermediate connected component labels
         # from coarse & tiled unwrapping.
         coarse_conncomp_tmpfile = unique_binary_file(
