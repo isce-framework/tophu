@@ -19,22 +19,22 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/psf/black
-    rev: "23.10.1"
+    rev: "23.12.1"
     hooks:
       - id: black
 
   - repo: https://github.com/PyCQA/flake8
-    rev: "6.1.0"
+    rev: "7.0.0"
     hooks:
       - id: flake8
 
   - repo: https://github.com/PyCQA/isort
-    rev: "5.12.0"
+    rev: "5.13.2"
     hooks:
       - id: isort
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: "v1.6.1"
+    rev: "v1.8.0"
     hooks:
       - id: mypy
 
@@ -45,7 +45,7 @@ repos:
       - id: numpydoc-validation
 
   - repo: https://github.com/hadialqattan/pycln
-    rev: "v2.3.0"
+    rev: "v2.4.0"
     hooks:
       - id: pycln
 
@@ -57,7 +57,7 @@ repos:
         exclude: test
 
   - repo: https://github.com/sirosen/texthooks
-    rev: "0.6.2"
+    rev: "0.6.3"
     hooks:
       - id: fix-ligatures
       - id: fix-smartquotes
