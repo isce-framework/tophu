@@ -171,10 +171,10 @@ def bandpass_equiripple_filter(
 
     # Get filter coefficients.
     coeffs = scipy.signal.remez(
-        numtaps,
-        edgefreqs,
-        gains,
-        weights,
+        numtaps=numtaps,
+        bands=edgefreqs,
+        desired=gains,
+        weight=weights,
         maxiter=maxiter,
         grid_density=grid_density,
         fs=samplerate,
