@@ -7,4 +7,4 @@ from ._unwrap import *
 from ._upsample import *
 from ._util import *
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
