@@ -3,7 +3,7 @@ ci:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: "v4.5.0"
+    rev: "v5.0.0"
     hooks:
       - id: check-added-large-files
       - id: check-case-conflict
@@ -19,12 +19,12 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/psf/black
-    rev: "23.12.1"
+    rev: "24.10.0"
     hooks:
       - id: black
 
   - repo: https://github.com/PyCQA/flake8
-    rev: "7.0.0"
+    rev: "7.1.1"
     hooks:
       - id: flake8
 
@@ -34,13 +34,13 @@ repos:
       - id: isort
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: "v1.8.0"
+    rev: "v1.12.1"
     hooks:
       - id: mypy
 
   - repo: https://github.com/numpy/numpydoc
     # The latest stable release doesn't yet support pre-commit.
-    rev: "v1.6.0"
+    rev: "v1.8.0"
     hooks:
       - id: numpydoc-validation
 
@@ -57,7 +57,7 @@ repos:
         exclude: test
 
   - repo: https://github.com/sirosen/texthooks
-    rev: "0.6.3"
+    rev: "0.6.7"
     hooks:
       - id: fix-ligatures
       - id: fix-smartquotes
